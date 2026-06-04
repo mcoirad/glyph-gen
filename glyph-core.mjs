@@ -18,8 +18,8 @@ export const phoenicianGlyphs = {
   yod: "R3|R3R4",
   kap: "S177|S1",
   lamed: "S17|S3",
-  mem: "T5r180 T5r180|R0 R2|R0 R2",
-  nun: "T5r180|R0 R2|R0 R2",
+  mem: "T5r180 T5r180 R8 | R0 R0 R8 | R0 R0 R8",
+  nun: "T5r180 R8 | R0 R8 | R0 R8",
   samekh: "R3R9|R3R9|R3R9|R3R9",
   ayin: "C",
   pe: "C3",
@@ -535,6 +535,16 @@ function createPrimitiveSegments(node) {
   throw new Error(`Unknown primitive ${node.primitive}`);
 }
 
+function createPrimitiveLayoutSegments(node) {
+  return createPrimitiveSegments({
+    ...node,
+    spec: {
+      ...node.spec,
+      hiddenEdges: []
+    }
+  });
+}
+
 function rotatePoint([x, y], degrees) {
   const radians = (degrees * Math.PI) / 180;
   const cos = Math.cos(radians);
@@ -735,6 +745,25 @@ function applyModifiers(segments, modifiers) {
   return modifiers.reduce((current, modifier) => applyModifierToSegments(current, modifier), segments);
 }
 
+function partitionModifiers(modifiers) {
+  const layoutModifiers = [];
+  const postLayoutModifiers = [];
+
+  modifiers.forEach((modifier) => {
+    if (modifier.type === "translate") {
+      postLayoutModifiers.push(modifier);
+      return;
+    }
+
+    layoutModifiers.push(modifier);
+  });
+
+  return {
+    layoutModifiers,
+    postLayoutModifiers
+  };
+}
+
 export function measureSegments(segments) {
   const visiblePoints = [];
 
@@ -786,10 +815,10 @@ function translateSegments(segments, dx, dy) {
 
 function compileGridComposite(node) {
   const compiledRows = node.rows.map((row) => row.map((child) => compileGlyphNode(child)));
-  const rowHeights = compiledRows.map((row) => Math.max(0, ...row.map((entry) => entry.bbox.height)));
+  const rowHeights = compiledRows.map((row) => Math.max(0, ...row.map((entry) => entry.layoutBBox.height)));
   const columnCount = Math.max(0, ...compiledRows.map((row) => row.length));
   const columnWidths = Array.from({ length: columnCount }, (_, columnIndex) => (
-    Math.max(0, ...compiledRows.map((row) => (row[columnIndex] ? row[columnIndex].bbox.width : 0)))
+    Math.max(0, ...compiledRows.map((row) => (row[columnIndex] ? row[columnIndex].layoutBBox.width : 0)))
   ));
 
   const totalHeight = rowHeights.reduce((sum, height) => sum + height, 0);
@@ -803,8 +832,8 @@ function compileGridComposite(node) {
 
     row.forEach((entry, columnIndex) => {
       const columnWidth = columnWidths[columnIndex];
-      const dx = cursorX + (columnWidth / 2);
-      const dy = cursorY + (rowHeight / 2);
+      const dx = cursorX + (columnWidth / 2) - entry.layoutBBox.cx;
+      const dy = cursorY + (rowHeight / 2) - entry.layoutBBox.cy;
       positioned.push(...translateSegments(entry.segments, dx, dy));
       cursorX += columnWidth;
     });
@@ -821,19 +850,28 @@ function compileOverlayComposite(node) {
 
 export function compileGlyphNode(node) {
   if (node.type === "primitive") {
-    const segments = applyModifiers(createPrimitiveSegments(node), node.modifiers);
+    const { layoutModifiers, postLayoutModifiers } = partitionModifiers(node.modifiers);
+    const layoutSegments = applyModifiers(createPrimitiveLayoutSegments(node), layoutModifiers);
+    const visibleSegments = applyModifiers(createPrimitiveSegments(node), layoutModifiers);
+    const segments = applyModifiers(visibleSegments, postLayoutModifiers);
     return {
+      layoutSegments,
+      layoutBBox: measureSegments(layoutSegments),
       segments,
       bbox: measureSegments(segments)
     };
   }
 
   if (node.type === "composite") {
+    const { layoutModifiers, postLayoutModifiers } = partitionModifiers(node.modifiers);
     const baseSegments = node.layout === "overlay"
       ? compileOverlayComposite(node)
       : compileGridComposite(node);
-    const segments = applyModifiers(baseSegments, node.modifiers);
+    const layoutSegments = applyModifiers(baseSegments, layoutModifiers);
+    const segments = applyModifiers(layoutSegments, postLayoutModifiers);
     return {
+      layoutSegments,
+      layoutBBox: measureSegments(layoutSegments),
       segments,
       bbox: measureSegments(segments)
     };

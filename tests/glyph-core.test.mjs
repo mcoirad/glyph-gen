@@ -129,6 +129,54 @@ test("bounded starburst reaches the rectangular bounds", () => {
   assert(endpoints.some(([x, y]) => x === 30 && y === 30));
 });
 
+test("grid keeps full cell anchors for edge-only cells", () => {
+  const compiled = compileGlyphDefinition("T3r270|R2");
+  const verticals = visibleSegments(compiled.segments).filter((segment) => (
+    segment.kind === "line"
+    && Math.abs(segment.start[0] - segment.end[0]) <= 0.0001
+    && Math.abs(segment.start[1] - segment.end[1]) >= 59.9999
+  ));
+
+  assert.deepEqual(roundBBox(compiled.bbox), {
+    width: 60,
+    height: 120,
+    cx: 0,
+    cy: 0
+  });
+  assert.equal(verticals.length, 2);
+  assert(verticals.every((segment) => roundBBox({
+    width: 0,
+    height: 0,
+    cx: segment.start[0],
+    cy: 0
+  }).cx === 30));
+});
+
+test("translate modifiers survive grid placement for edge-only cells", () => {
+  const compiled = compileGlyphDefinition("T3r270|R2 t(10,0)");
+  const verticals = visibleSegments(compiled.segments).filter((segment) => (
+    segment.kind === "line"
+    && Math.abs(segment.start[0] - segment.end[0]) <= 0.0001
+    && Math.abs(segment.start[1] - segment.end[1]) >= 59.9999
+  ));
+
+  assert.deepEqual(roundBBox(compiled.bbox), {
+    width: 70,
+    height: 120,
+    cx: 5,
+    cy: 0
+  });
+  assert.deepEqual(
+    verticals.map((segment) => roundBBox({
+      width: 0,
+      height: 0,
+      cx: segment.start[0],
+      cy: 0
+    }).cx),
+    [30, 40]
+  );
+});
+
 test("selected glyph fixtures preserve expected compiled geometry", () => {
   const fixtures = {
     aleph: {
@@ -141,7 +189,7 @@ test("selected glyph fixtures preserve expected compiled geometry", () => {
     },
     qop: {
       counts: { arc: 4, line: 3 },
-      bbox: { width: 60, height: 75, cx: 0, cy: -7.5 }
+      bbox: { width: 60, height: 90, cx: 0, cy: -15 }
     },
     shin: {
       counts: { line: 4 },
@@ -174,23 +222,17 @@ test("mem and nun keep their spine on the right side", () => {
   const mem = findTallVerticalSegments(phoenicianGlyphs.mem);
   const nun = findTallVerticalSegments(phoenicianGlyphs.nun);
 
-  assert.deepEqual(roundBBox(mem.bbox), {
-    width: 120,
-    height: 180,
-    cx: 0,
-    cy: 0
-  });
-  assert.equal(mem.verticals.length, 2);
-  assert(mem.verticals.every((segment) => segment.start[0] > 0 && segment.end[0] > 0));
+  assert.equal(mem.verticals.length, 3);
+  assert(mem.verticals.every((segment) => (
+    Math.abs(segment.start[0] - mem.bbox.maxX) <= 0.0001
+    && Math.abs(segment.end[0] - mem.bbox.maxX) <= 0.0001
+  )));
 
-  assert.deepEqual(roundBBox(nun.bbox), {
-    width: 90,
-    height: 180,
-    cx: 15,
-    cy: 0
-  });
-  assert.equal(nun.verticals.length, 2);
-  assert(nun.verticals.every((segment) => segment.start[0] > 0 && segment.end[0] > 0));
+  assert.equal(nun.verticals.length, 3);
+  assert(nun.verticals.every((segment) => (
+    Math.abs(segment.start[0] - nun.bbox.maxX) <= 0.0001
+    && Math.abs(segment.end[0] - nun.bbox.maxX) <= 0.0001
+  )));
 });
 
 test("compiled glyphs fit back into the default cell", () => {
