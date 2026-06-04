@@ -1,0 +1,101 @@
+:root {
+  --page-bg: linear-gradient(135deg, #f8efe1 0%, #e9f1ee 45%, #d9e5f2 100%);
+  --panel-bg: rgba(255, 255, 255, 0.72);
+  --panel-border: rgba(27, 36, 50, 0.14);
+  --text: #18212b;
+  --muted: #4f6478;
+  --shadow: 0 24px 60px rgba(18, 33, 48, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--page-bg);
+  color: var(--text);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.page {
+  width: min(1080px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 48px 0 72px;
+}
+
+.hero {
+  max-width: 760px;
+  margin-bottom: 32px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 0.95;
+}
+
+.lede {
+  margin: 18px 0 0;
+  max-width: 62ch;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.workspace {
+  border: 1px solid var(--panel-border);
+  border-radius: 28px;
+  padding: 20px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+}
+
+.canvas-frame {
+  overflow: auto;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(247, 188, 84, 0.28), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(100, 155, 230, 0.2), transparent 34%),
+    rgba(255, 255, 255, 0.9);
+  padding: 24px;
+}
+
+#canvas {
+  width: 100%;
+  min-height: 600px;
+  border: 1px solid rgba(24, 33, 43, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+#canvas svg {
+  display: block;
+  max-width: 100%;
+}
+
+@media (max-width: 720px) {
+  .page {
+    width: min(100vw - 20px, 1080px);
+    padding-top: 28px;
+    padding-bottom: 40px;
+  }
+
+  .workspace {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .canvas-frame {
+    padding: 12px;
+  }
+}
