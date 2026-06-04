@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html>
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>randomLang6</title>
+
+  <style>
+    body { background: #f5f5f5; }
+    #canvas { margin: 20px auto; width: 600px; height: 600px; border: 1px solid #ccc; }
+  </style>
+
+  
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.js"></script>
+  <div id="canvas"></div>
+  
+
+  <script>
+    const draw = SVG().addTo("#canvas").size(600, 600)
+
+
+
+DEFAULT_SIZE = 60
+
+class GlyphPrimitive {
+  constructor(type, options = {}) {
+    this.type = type // 'polygon', 'arcCircle', 'lines', 'starburst'
+    this.points = options.points || []
+    this.segments = options.segments || []
+    this.edges = options.edges || [] // also used to track visibility of segments
+    this.visible = options.visible !== false
+    this.transform = {
+      rotate: 0,
+      center: [0, 0],
+      translate: [0, 0],
+      scale: [1, 1]
+    }
+
+    // Apply edges to segments for arcCircle and starburst
+    if ((type === 'arcCircle' || type === 'starburst') && this.edges.length) {
+      for (let i = 0; i < this.edges.length && i < this.segments.length; i++) {
+        this.segments[i].visible = this.edges[i] !== false
+      }
+    }
+  }
+
+  rotate(angle, cx = 0, cy = 0) {
+    this.transform.rotate += angle
+    this.transform.center = [cx, cy]
+  }
+
+  translate(dx, dy) {
+    this.transform.translate[0] += dx
+    this.transform.translate[1] += dy
+  }
+
+  scale(sx, sy) {
+    this.transform.scale[0] *= sx
+    this.transform.scale[1] *= sy
+  }
+
+  hideEdge(index) {
+    if (this.type === 'polygon' && index < this.edges.length) {
+      this.edges[index] = false
+    } else if ((this.type === 'arcCircle' || this.type === 'starburst') && index < this.segments.length) {
+      this.segments[index].visible = false
+      this.edges[index] = false
+    }
+  }
+
+  clone() {
+    const copy = new GlyphPrimitive(this.type, {
+      points: JSON.parse(JSON.stringify(this.points)),
+      segments: JSON.parse(JSON.stringify(this.segments)),
+      edges: [...this.edges],
+      visible: this.visible
+    })
+    copy.transform = JSON.parse(JSON.stringify(this.transform))
+    return copy
+  }
+
+  render(group) {
+    const g = group.group()
+    g.translate(this.transform.translate[0], this.transform.translate[1])
+    g.scale(this.transform.scale[0], this.transform.scale[1])
+    g.rotate(this.transform.rotate, this.transform.center[0], this.transform.center[1])
+
+    if (!this.visible) return
+
+    const strokeAttrs = { width: 2, color: "#000" }
+
+    if (this.type === "polygon") {
+      for (let i = 0; i < this.points.length; i++) {
+        const p1 = this.points[i]
+        const p2 = this.points[(i + 1) % this.points.length]
+        const visible = this.edges[i] !== false
+        g.line(p1[0], p1[1], p2[0], p2[1])
+          .stroke({ width: 2, color: visible ? "#000" : "transparent" })
+          .attr({ 'vector-effect': 'non-scaling-stroke' })
+      }
+    }
+
+    if (this.type === "lines") {
+      this.segments.forEach(([p1, p2]) => {
+        g.line(p1[0], p1[1], p2[0], p2[1])
+          .stroke(strokeAttrs)
+          .attr({ 'vector-effect': 'non-scaling-stroke' })
+      })
+    }
+
+    if (this.type === "arcCircle") {
+      this.segments.forEach((seg) => {
+        if (!seg.visible) return
+        const [x1, y1] = seg.start
+        const [x2, y2] = seg.end
+        const r = Math.hypot(x1, y1)
+        const path = `M${x1},${y1} A${r},${r} 0 0,1 ${x2},${y2}`
+        g.path(path)
+          .fill("none")
+          .stroke(strokeAttrs)
+          .attr({ 'vector-effect': 'non-scaling-stroke' })
+      })
+    }
+
+    if (this.type === "starburst") {
+      this.segments.forEach((seg) => {
+        if (!seg.visible) return
+        const [x1, y1] = seg.start
+        const [x2, y2] = seg.end
+        g.line(x1, y1, x2, y2)
+          .stroke(strokeAttrs)
+          .attr({ 'vector-effect': 'non-scaling-stroke' })
+      })
+    }
+  }
+}
+
+
+function createSquare(size = 60) {
+  const half = size / 2
+  return new GlyphPrimitive('polygon', {
+    points: [
+      [-half, -half],
+      [half, -half],
+      [half, half],
+      [-half, half],
+    ],
+    edges: [true, true, true, true]
+  })
+}
+
+// Helper to create arcCircle
+function createArcCircle(radius = 30) {
+  return new GlyphPrimitive("arcCircle", {
+    segments: [
+      { start: [0, -radius], end: [radius, 0], visible: true },
+      { start: [radius, 0], end: [0, radius], visible: true },
+      { start: [0, radius], end: [-radius, 0], visible: true },
+      { start: [-radius, 0], end: [0, -radius], visible: true },
+    ]
+  })
+}
+
+// Helper to create starburst
+function createStarburst(n = 8, radius = 30) {
+  const angleStep = (Math.PI * 2) / n
+  const segments = []
+  for (let i = 0; i < n; i++) {
+    const angle = i * angleStep
+    segments.push({
+      start: [0, 0],
+      end: [Math.cos(angle) * radius, Math.sin(angle) * radius],
+      visible: true
+    })
+  }
+  return new GlyphPrimitive("starburst", { segments })
+}
+class GlyphComposite {
+  constructor(cells = [], layout = "rows", targetWidth = DEFAULT_SIZE, targetHeight = DEFAULT_SIZE) {
+    this.cells = cells // 2D array of GlyphPrimitives or nested GlyphComposites
+    this.layout = layout // "rows", "cols", or "overlay"
+    this.targetWidth = targetWidth
+    this.targetHeight = targetHeight
+    this.skipAutoScale = false // prevents double-scaling of nested composites
+  }
+
+  getBBox(p) {
+    const dummy = SVG().size(0, 0).group()
+    const g = dummy.group()
+    p.render(g)
+    const bbox = g.bbox()
+    dummy.remove()
+    return bbox
+  }
+
+  stackGrid() {
+    if (this.layout === "overlay") return
+
+    const matrix = this.layout === "cols" ? this.transpose(this.cells) : this.cells
+
+    const bboxes = matrix.map(row => row.map(p => this.getBBox(p)))
+    const rowHeights = bboxes.map(row =>
+      Math.max(...row.map(b => b.height))
+    )
+    const colWidths = []
+    const numCols = Math.max(...bboxes.map(r => r.length))
+    for (let col = 0; col < numCols; col++) {
+      colWidths[col] = Math.max(...bboxes.map(r => r[col] ? r[col].width : 0))
+    }
+
+    const totalHeight = rowHeights.reduce((a, b) => a + b, 0)
+    const totalWidth = colWidths.reduce((a, b) => a + b, 0)
+
+    const offsetY = -totalHeight / 2
+    let cursorY = offsetY
+    for (let rowIdx = 0; rowIdx < matrix.length; rowIdx++) {
+      const row = matrix[rowIdx]
+      const h = rowHeights[rowIdx]
+      let cursorX = -totalWidth / 2
+
+      for (let colIdx = 0; colIdx < row.length; colIdx++) {
+        const p = row[colIdx]
+        const w = colWidths[colIdx]
+        if (p) {
+          if (p instanceof GlyphPrimitive || p instanceof GlyphComposite) {
+            if (p instanceof GlyphComposite) {
+              p.targetWidth = w
+              p.targetHeight = h
+              p.skipAutoScale = true
+              p.stackGrid()
+            }
+            p.translate(cursorX + w / 2, cursorY + h / 2)
+          }
+        }
+        cursorX += w
+      }
+      cursorY += h
+    }
+  }
+
+  transpose(matrix) {
+    return matrix[0].map((_, i) => matrix.map(row => row[i]))
+  }
+
+  translate(dx, dy) {
+    for (const row of this.cells) {
+      for (const p of row) {
+        if (p instanceof GlyphPrimitive || p instanceof GlyphComposite) {
+          p.translate(dx, dy)
+        }
+      }
+    }
+  }
+
+  render(group) {
+    const g = group.group()
+
+    if (this.layout === "overlay") {
+      this.cells.flat().forEach(p => {
+        const cellGroup = g.group()
+        p.render(cellGroup)
+      })
+    } else {
+      this.stackGrid()
+
+      this.cells.forEach(row => {
+        row.forEach(p => {
+          const cellGroup = g.group()
+          p.render(cellGroup)
+        })
+      })
+    }
+
+    if (!this.skipAutoScale) {
+      const bbox = g.bbox()
+      const scaleX = this.targetWidth / bbox.width
+      const scaleY = this.targetHeight / bbox.height
+      const scale = Math.min(scaleX, scaleY)
+
+      g.scale(scale)
+      g.translate(-bbox.cx * scale + this.targetWidth / 2, -bbox.cy * scale + this.targetHeight / 2)
+    }
+
+    return g
+  }
+}
+
+function createPrimitiveFromSpec(spec) {
+  if (spec.type === "polygon" && spec.shape === "square") {
+    const halfW = spec.width / 2
+    const halfH = spec.height / 2
+    const edges = [true, true, true, true]
+    if (spec.hiddenEdges) {
+      for (const idx of spec.hiddenEdges) edges[idx] = false
+    }
+    const prim = new GlyphPrimitive("polygon", {
+      points: [
+        [-halfW, -halfH],
+        [halfW, -halfH],
+        [halfW, halfH],
+        [-halfW, halfH]
+      ],
+      edges
+    })
+    if (spec.rotate) prim.rotate(spec.rotate, 0, 0)
+    return prim
+  }
+
+  if (spec.type === "polygon" && spec.shape === "triangle") {
+    const halfW = spec.width / 2
+    const halfH = spec.height / 2
+    const edges = [true, true, true]
+    if (spec.hiddenEdges) {
+      for (const idx of spec.hiddenEdges) edges[idx] = false
+    }
+    const prim = new GlyphPrimitive("polygon", {
+      points: [
+        [0, -halfH],
+        [halfW, halfH],
+        [-halfW, halfH]
+      ],
+      edges
+    })
+    if (spec.rotate) prim.rotate(spec.rotate, 0, 0)
+    return prim
+  }
+
+  if (spec.type === "arcCircle") {
+    const r = spec.radius || DEFAULT_SIZE / 2
+    const segments = [
+      { start: [0, -r], end: [r, 0], visible: true },
+      { start: [r, 0], end: [0, r], visible: true },
+      { start: [0, r], end: [-r, 0], visible: true },
+      { start: [-r, 0], end: [0, -r], visible: true }
+    ]
+    const edges = segments.map(() => true)
+    if (spec.hiddenEdges) {
+      for (const idx of spec.hiddenEdges) edges[idx] = false
+    }
+    return new GlyphPrimitive("arcCircle", { segments, edges })
+  }
+
+  if (spec.type === "starburst") {
+    const radius = spec.radius || DEFAULT_SIZE / 2
+    const count = spec.points || 4
+    const segments = []
+    for (let i = 0; i < count; i++) {
+      const angle = (i * 2 * Math.PI) / count - (0.5 * Math.PI)//TODO: why do we have to do this? (move things back 90 degrees)
+      segments.push({
+        start: [0, 0],
+        end: [Math.cos(angle) * radius, Math.sin(angle) * radius],
+        visible: true
+      })
+    }
+    const edges = segments.map(() => true)
+    if (spec.hiddenEdges) {
+      for (const idx of spec.hiddenEdges) edges[idx] = false
+    }
+    console.log(segments)
+    const prim = new GlyphPrimitive("starburst", { segments, edges })
+    if (spec.rotate) prim.rotate(spec.rotate, 0, 0)
+    return prim
+  }
+
+  console.warn("Unknown primitive spec:", spec)
+  return new GlyphPrimitive("polygon", {}) // fallback
+}
+
+
+function createPhoenicianHe(width = 60, heightPerBox = 60) {
+  const halfW = width / 2
+  const halfH = heightPerBox / 2
+  const rows = []
+
+  for (let i = 0; i < 4; i++) {
+    const square = new GlyphPrimitive("polygon", {
+      points: [
+        [-halfW, -halfH],
+        [halfW, -halfH],
+        [halfW, halfH],
+        [-halfW, halfH]
+      ],
+      edges: [true, true, true, true]
+    })
+
+    square.hideEdge(3) // left
+    if (i === 3) square.hideEdge(2) // bottom
+
+    rows.push([square]) // each row is a 1-element array
+  }
+
+  return new GlyphComposite(rows, "rows")
+}
+function createPhoenicianSamekh(width = 60, heightPerBox = 60) {
+  const halfW = width / 2
+  const halfH = heightPerBox / 2
+  const rows = []
+
+  for (let i = 0; i < 4; i++) {
+    const left = new GlyphPrimitive("polygon", {
+      points: [
+        [-halfW, -halfH],
+        [halfW, -halfH],
+        [halfW, halfH],
+        [-halfW, halfH]
+      ],
+      edges: [true, true, true, true]
+    })
+    left.hideEdge(3) // left
+    if (i === 3) left.hideEdge(2) // bottom
+
+    const right = new GlyphPrimitive("polygon", {
+      points: [
+        [-halfW, -halfH],
+        [halfW, -halfH],
+        [halfW, halfH],
+        [-halfW, halfH]
+      ],
+      edges: [true, true, true, true]
+    })
+    right.hideEdge(1) // right
+    if (i === 3) right.hideEdge(2) // bottom
+
+    rows.push([left, right]) // ⬅️ Note: each row has two boxes
+  }
+
+  const composite = new GlyphComposite(rows, "rows")
+  return composite
+}
+
+function createPhoenicianTeth(radius = 30) {
+  const circle = new GlyphPrimitive("arcCircle", {
+    segments: [
+      { start: [0, -radius], end: [radius, 0], visible: true },
+      { start: [radius, 0], end: [0, radius], visible: true },
+      { start: [0, radius], end: [-radius, 0], visible: true },
+      { start: [-radius, 0], end: [0, -radius], visible: true }
+    ]
+  })
+
+  const star = createStarburst(n = 4, radius);
+  star.rotate(45) // rotate starburst by 90 degrees
+
+  return new GlyphComposite([[circle, star]], "overlay")
+}
+
+
+
+/* Config functions */
+function glyphFromConfig(config) {
+  const rows = config.cells.map(row =>
+    row.map(spec => createPrimitiveFromSpec(spec))
+  )
+  const composite = new GlyphComposite(rows, config.layout || "rows", 100, 100, 60)
+  return composite
+}
+
+function bitmaskToHiddenEdges(bitmask, edgeCount) {
+  const hidden = []
+  for (let i = 0; i < edgeCount; i++) {
+    const bit = (bitmask >> i) & 1
+    if (!bit) hidden.push(i)
+  }
+  console.log(hidden)
+  return hidden
+}
+
+
+function createPrimitiveFromSymbol(token) {
+  const match = token.match(/^([TSCR])(\d+)?(?:r(-?\d+))?$/)
+  if (!match) return null
+
+  const symbol = match[1]
+  const bits = match[2] ? parseInt(match[2]) : null
+  const rotate = match[3] ? parseInt(match[3]) : null
+
+  const base = {
+    hiddenEdges: bits !== null ? bitmaskToHiddenEdges(bits, {
+      'T': 3,
+      'S': 8,
+      'C': 4,
+      'R': 4
+    }[symbol]) : [],
+    rotate
+  }
+
+  switch (symbol) {
+    case 'T':
+      return createPrimitiveFromSpec({
+        type: "polygon",
+        shape: "triangle",
+        width: DEFAULT_SIZE,
+        height: DEFAULT_SIZE,
+        ...base
+      })
+    case 'S':
+      return createPrimitiveFromSpec({
+        type: "starburst",
+        points: 8,
+        radius: DEFAULT_SIZE / 2,
+        ...base
+      })
+    case 'C':
+      return createPrimitiveFromSpec({
+        type: "arcCircle",
+        radius: DEFAULT_SIZE / 2,
+        ...base
+      })
+    case 'R':
+      return createPrimitiveFromSpec({
+        type: "polygon",
+        shape: "square",
+        width: DEFAULT_SIZE,
+        height: DEFAULT_SIZE,
+        ...base
+      })
+    default:
+      console.warn("Unhandled symbol:", symbol)
+      return null
+  }
+}
+
+
+
+
+
+function generateRandomGlyphConfig() {
+  const layouts = ["rows", "cols", "overlay", "overlay"]
+  const layout = layouts[Math.floor(Math.random() * layouts.length)]
+  const numRows = layout === "overlay" ? Math.floor(Math.random() * 3) + 1 : Math.floor(Math.random() * 3) + 1
+  const numCols = layout === "overlay" ? 1 : Math.floor(Math.random() * 3) + 1
+
+  const cells = []
+  for (let row = 0; row < numRows; row++) {
+    const rowCells = []
+    for (let col = 0; col < numCols; col++) {
+      rowCells.push(generateRandomPrimitiveSpec())
+    }
+    cells.push(rowCells)
+  }
+
+  return { layout, cells }
+}
+function pickRandomEdges(n) {
+  const edges = []
+  for (let i = 0; i < n; i++) {
+    if (Math.random() < 0.6) edges.push(i)
+  }
+  return edges
+}
+
+function generateRandomPrimitiveSpec() {
+  const types = ["square", "triangle", "circle", "starburst"]
+  const choice = types[Math.floor(Math.random() * types.length)]
+  const width = 60
+  const height = 60
+
+  const base = {
+    type: "polygon",
+    shape: choice,
+    width,
+    height,
+    hiddenEdges: []
+  }
+
+  if (choice === "square") {
+    base.type = "polygon"
+    base.shape = "square"
+    base.hiddenEdges = pickRandomEdges(4)
+  } else if (choice === "triangle") {
+    base.type = "polygon"
+    base.shape = "triangle"
+    base.hiddenEdges = pickRandomEdges(3)
+  } else if (choice === "circle") {
+    base.type = "arcCircle"
+    base.radius = 30
+  } else if (choice === "starburst") {
+    base.type = "starburst"
+    base.points = 4 + Math.floor(Math.random() * 4)
+    base.radius = 30
+    base.rotate = Math.random() < 0.5 ? 45 : 0
+  }
+
+  return base
+}
+
+function tokenizeLSystem(input) {
+  const regex = /[TSCR]\d*(r-?\d+)?|[\-\*\|\[\]]/g
+  return input.match(regex) || []
+}
+
+function parseGlyphLSystem(input) {
+  const tokens = tokenizeLSystem(input)
+  let index = 0
+
+  function parseExpression() {
+    const rows = []
+    let currentRow = []
+    let currentOp = 'rows' // default layout
+
+    while (index < tokens.length) {
+      const token = tokens[index++]
+
+      if (isPrimitive(token)) {
+        currentRow.push(createPrimitiveFromSymbol(token))
+      } else if (token === '-') {
+        currentOp = 'rows'
+      } else if (token === '*') {
+        currentOp = 'overlay'
+      } else if (token === '|') {
+        // Push the current row to the grid
+        if (currentRow.length > 0) {
+          rows.push(currentRow)
+          currentRow = []
+        }
+      } else if (token === '[') {
+        currentRow.push(parseExpression())
+      } else if (token === ']') {
+        break
+      } else {
+        console.warn("Unknown token:", token)
+      }
+    }
+
+    // Final row (if any)
+    if (currentRow.length > 0) {
+      rows.push(currentRow)
+    }
+
+    if (rows.length === 1 && rows[0].length === 1) {
+      return new GlyphComposite([[rows[0][0]]], 'rows', DEFAULT_SIZE, DEFAULT_SIZE)
+    }
+
+    return new GlyphComposite(rows, currentOp, DEFAULT_SIZE, DEFAULT_SIZE)
+  }
+
+  return parseExpression()
+}
+
+function isPrimitive(token) {
+  return /^[TSCR]\d*(r-?\d+)?$/.test(token)
+}
+
+phoenician_glyphs = {
+  "aleph": "T5r270*S17",
+  "bet": "Tr270|R6",
+  "giml": "T3r270|R2",
+  "delat": "T",
+  "he": "R3|R3|R3|R3",
+  "waw": "S146",
+  "tet": "S170*C",
+  "zayin": "R5*S17",
+  "het": "R12R6|R13R7|R13R7|R9R3",
+  "tet": "C*S170",
+  "yod": "R3|R3R4",
+  "kap": "S177|S1",
+  "lamed": "S17|S3",
+  "mem": "T5r180 T5r180 R8 | R0 R0 R8 | R0 R0 R8",
+  "nun": "T5r180 R8 | R0 R8 | R0 R8",
+  "samekh" : "R3R9|R3R9|R3R9|R3R9",
+  "ayin": "C",
+  "pe": "C3",
+  "sade": "S19S130",
+  "qop": "[C*S17]|S1",
+  "res": "Tr270|R2",
+  "shin": "T5r180T5r180",
+  "taw": "S170"
+}
+
+//const g = draw.group().translate(300, 300)
+//const sm = createPhoenicianSamekh(60, 60)
+//const sm = parseGlyphLSystem("R12R8|R12R8|R12R8|R12R8");
+//const sm = parseGlyphLSystem("T5r180T5r180");
+//sm.render(g)
+
+//const circle = createArcCircle();
+//const starburst = createStarburst();
+//const composite = new GlyphComposite([[circle, starburst]], "overlay")
+//composite.render(draw.group().translate(300, 300))
+
+//const g1 = draw.group().translate(100, 100)
+//const he = createPhoenicianHe()
+//he.render(g1)
+
+//createPhoenicianTeth().render(draw.group().translate(300, 300))
+
+// Fully randomized approach
+//const config = generateRandomGlyphConfig()
+//console.log(config)
+//const glyph = glyphFromConfig(config)
+//glyph.render(draw.group().translate(300, 300))
+
+/*
+const charCellSize = 100
+const charGridSize = 4
+const charSpacing = 20
+
+const effectiveCellSize = charCellSize + charSpacing
+
+for (let y = 0; y < charGridSize; y++) {
+  for (let x = 0; x < charGridSize; x++) {
+    const config = generateRandomGlyphConfig()
+    const glyph = glyphFromConfig(config)
+
+    // center of the full cell, including spacing
+    const gx = x * effectiveCellSize + effectiveCellSize / 2
+    const gy = y * effectiveCellSize + effectiveCellSize / 2
+
+    glyph.render(draw.group().translate(gx, gy))
+  }
+}
+*/
+
+
+const cellSize = 60
+const spacing = 30
+const labelHeight = 20
+const effectiveSize = cellSize + spacing + labelHeight
+const perRow = 6
+
+const entries = Object.entries(phoenician_glyphs)
+entries.forEach(([name, definition], i) => {
+  const col = i % perRow
+  const row = Math.floor(i / perRow)
+
+  const gx = col * (cellSize + spacing) + cellSize / 2
+  const gy = row * effectiveSize + cellSize / 2
+
+  const glyph = parseGlyphLSystem(definition)
+  glyph.render(draw.group().translate(gx, gy))
+
+  // Add Romanized name below the glyph
+  draw.text(name)
+    .font({ size: 14, family: "monospace", anchor: "middle" })
+    .center(gx, gy + cellSize+10)
+})
+  </script>
+</body>
+</html>
