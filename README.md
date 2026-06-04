@@ -19,7 +19,7 @@ Then open [http://localhost:8000](http://localhost:8000).
 
 ## GitHub Pages
 
-This repo includes [`.github/workflows/deploy-pages.yml`](/Users/dariomitchell/Documents/GitHub/glyph-gen/.github/workflows/deploy-pages.yml), which deploys the site automatically when you push to `main`.
+This repo includes [`/.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml), which deploys the site automatically when you push to `main`.
 
 To finish enabling Pages in GitHub:
 
