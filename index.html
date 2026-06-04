@@ -22,20 +22,63 @@
 
     <section class="workspace">
       <div class="workspace-controls" aria-label="Brush preview controls">
-        <label class="control-card" for="brush-angle">
+        <label class="control-card control-card--select" for="brush-profile">
           <span class="control-heading">
-            <span class="control-label">Nib Angle</span>
-            <output id="brush-angle-value" for="brush-angle">30°</output>
+            <span class="control-label">Brush Profile</span>
           </span>
-          <input id="brush-angle" type="range" min="0" max="180" step="1" value="30">
+          <select id="brush-profile">
+            <option value="segment">Segment</option>
+            <option value="circle">Circle</option>
+            <option value="rectangle">Rectangle</option>
+          </select>
         </label>
 
-        <label class="control-card" for="brush-thickness">
+        <label class="control-card" for="segment-angle" data-profile-controls="segment">
           <span class="control-heading">
-            <span class="control-label">Thickness</span>
-            <output id="brush-thickness-value" for="brush-thickness">8</output>
+            <span class="control-label">Nib Angle</span>
+            <output id="segment-angle-value" for="segment-angle">30°</output>
           </span>
-          <input id="brush-thickness" type="range" min="2" max="18" step="0.5" value="8">
+          <input id="segment-angle" type="range" min="0" max="180" step="1" value="30">
+        </label>
+
+        <label class="control-card" for="segment-length" data-profile-controls="segment">
+          <span class="control-heading">
+            <span class="control-label">Length</span>
+            <output id="segment-length-value" for="segment-length">8</output>
+          </span>
+          <input id="segment-length" type="range" min="2" max="18" step="0.5" value="8">
+        </label>
+
+        <label class="control-card" for="circle-diameter" data-profile-controls="circle" hidden>
+          <span class="control-heading">
+            <span class="control-label">Diameter</span>
+            <output id="circle-diameter-value" for="circle-diameter">8</output>
+          </span>
+          <input id="circle-diameter" type="range" min="2" max="18" step="0.5" value="8">
+        </label>
+
+        <label class="control-card" for="rectangle-angle" data-profile-controls="rectangle" hidden>
+          <span class="control-heading">
+            <span class="control-label">Rectangle Angle</span>
+            <output id="rectangle-angle-value" for="rectangle-angle">30°</output>
+          </span>
+          <input id="rectangle-angle" type="range" min="0" max="180" step="1" value="30">
+        </label>
+
+        <label class="control-card" for="rectangle-width" data-profile-controls="rectangle" hidden>
+          <span class="control-heading">
+            <span class="control-label">Width</span>
+            <output id="rectangle-width-value" for="rectangle-width">10</output>
+          </span>
+          <input id="rectangle-width" type="range" min="2" max="20" step="0.5" value="10">
+        </label>
+
+        <label class="control-card" for="rectangle-height" data-profile-controls="rectangle" hidden>
+          <span class="control-heading">
+            <span class="control-label">Height</span>
+            <output id="rectangle-height-value" for="rectangle-height">4</output>
+          </span>
+          <input id="rectangle-height" type="range" min="2" max="16" step="0.5" value="4">
         </label>
       </div>
 

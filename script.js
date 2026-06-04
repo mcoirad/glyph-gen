@@ -6,16 +6,46 @@ import { phoenicianGlyphs } from "./glyph-definitions.mjs";
 import { renderGlyphNode } from "./glyph-render.mjs";
 
 const draw = SVG().addTo("#canvas").size(600, 600);
-const angleInput = document.querySelector("#brush-angle");
-const angleValue = document.querySelector("#brush-angle-value");
-const thicknessInput = document.querySelector("#brush-thickness");
-const thicknessValue = document.querySelector("#brush-thickness-value");
+const profileInput = document.querySelector("#brush-profile");
+const segmentAngleInput = document.querySelector("#segment-angle");
+const segmentAngleValue = document.querySelector("#segment-angle-value");
+const segmentLengthInput = document.querySelector("#segment-length");
+const segmentLengthValue = document.querySelector("#segment-length-value");
+const circleDiameterInput = document.querySelector("#circle-diameter");
+const circleDiameterValue = document.querySelector("#circle-diameter-value");
+const rectangleAngleInput = document.querySelector("#rectangle-angle");
+const rectangleAngleValue = document.querySelector("#rectangle-angle-value");
+const rectangleWidthInput = document.querySelector("#rectangle-width");
+const rectangleWidthValue = document.querySelector("#rectangle-width-value");
+const rectangleHeightInput = document.querySelector("#rectangle-height");
+const rectangleHeightValue = document.querySelector("#rectangle-height-value");
+const controlGroups = document.querySelectorAll("[data-profile-controls]");
 const previewState = {
   mode: "brush",
   brush: {
-    angle: 30,
-    thickness: 8,
-    color: "#18212b"
+    color: "#18212b",
+    profile: {
+      kind: "segment",
+      angle: 30,
+      length: 8
+    }
+  },
+  profiles: {
+    segment: {
+      kind: "segment",
+      angle: 30,
+      length: 8
+    },
+    circle: {
+      kind: "circle",
+      diameter: 8
+    },
+    rectangle: {
+      kind: "rectangle",
+      angle: 30,
+      width: 10,
+      height: 4
+    }
   }
 };
 
@@ -24,11 +54,42 @@ function formatControlValue(value) {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
+function cloneProfile(profile) {
+  return JSON.parse(JSON.stringify(profile));
+}
+
+function applyActiveProfile() {
+  const activeProfile = previewState.profiles[previewState.brush.profile.kind];
+  previewState.brush.profile = cloneProfile(activeProfile);
+}
+
 function syncControls() {
-  angleInput.value = String(previewState.brush.angle);
-  angleValue.textContent = `${formatControlValue(previewState.brush.angle)}°`;
-  thicknessInput.value = String(previewState.brush.thickness);
-  thicknessValue.textContent = formatControlValue(previewState.brush.thickness);
+  const activeKind = previewState.brush.profile.kind;
+  const segment = previewState.profiles.segment;
+  const circle = previewState.profiles.circle;
+  const rectangle = previewState.profiles.rectangle;
+
+  profileInput.value = activeKind;
+
+  segmentAngleInput.value = String(segment.angle);
+  segmentAngleValue.textContent = `${formatControlValue(segment.angle)}°`;
+  segmentLengthInput.value = String(segment.length);
+  segmentLengthValue.textContent = formatControlValue(segment.length);
+
+  circleDiameterInput.value = String(circle.diameter);
+  circleDiameterValue.textContent = formatControlValue(circle.diameter);
+
+  rectangleAngleInput.value = String(rectangle.angle);
+  rectangleAngleValue.textContent = `${formatControlValue(rectangle.angle)}°`;
+  rectangleWidthInput.value = String(rectangle.width);
+  rectangleWidthValue.textContent = formatControlValue(rectangle.width);
+  rectangleHeightInput.value = String(rectangle.height);
+  rectangleHeightValue.textContent = formatControlValue(rectangle.height);
+
+  controlGroups.forEach((group) => {
+    const matches = group.dataset.profileControls === activeKind;
+    group.hidden = !matches;
+  });
 }
 
 function renderGlyphTable() {
@@ -74,17 +135,55 @@ window.GlyphGen = {
   renderGlyphTable
 };
 
-angleInput.addEventListener("input", () => {
-  previewState.brush.angle = Number.parseFloat(angleInput.value);
+profileInput.addEventListener("input", () => {
+  previewState.brush.profile.kind = profileInput.value;
   syncControls();
+  applyActiveProfile();
   renderGlyphTable();
 });
 
-thicknessInput.addEventListener("input", () => {
-  previewState.brush.thickness = Number.parseFloat(thicknessInput.value);
+segmentAngleInput.addEventListener("input", () => {
+  previewState.profiles.segment.angle = Number.parseFloat(segmentAngleInput.value);
   syncControls();
+  applyActiveProfile();
   renderGlyphTable();
 });
 
+segmentLengthInput.addEventListener("input", () => {
+  previewState.profiles.segment.length = Number.parseFloat(segmentLengthInput.value);
+  syncControls();
+  applyActiveProfile();
+  renderGlyphTable();
+});
+
+circleDiameterInput.addEventListener("input", () => {
+  previewState.profiles.circle.diameter = Number.parseFloat(circleDiameterInput.value);
+  syncControls();
+  applyActiveProfile();
+  renderGlyphTable();
+});
+
+rectangleAngleInput.addEventListener("input", () => {
+  previewState.profiles.rectangle.angle = Number.parseFloat(rectangleAngleInput.value);
+  syncControls();
+  applyActiveProfile();
+  renderGlyphTable();
+});
+
+rectangleWidthInput.addEventListener("input", () => {
+  previewState.profiles.rectangle.width = Number.parseFloat(rectangleWidthInput.value);
+  syncControls();
+  applyActiveProfile();
+  renderGlyphTable();
+});
+
+rectangleHeightInput.addEventListener("input", () => {
+  previewState.profiles.rectangle.height = Number.parseFloat(rectangleHeightInput.value);
+  syncControls();
+  applyActiveProfile();
+  renderGlyphTable();
+});
+
+applyActiveProfile();
 syncControls();
 renderGlyphTable();
