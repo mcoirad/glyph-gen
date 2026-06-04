@@ -75,6 +75,7 @@ Any primitive or grouped expression can be followed by zero or more suffix modif
 - `s(x)` scales uniformly
 - `s(x,y)` scales non-uniformly
 - `c(k)` curves straight line segments into quadratic curves
+- `h(lobe[,taper])` warps visible arc segments into a heart-like curve
 - `b()` switches a starburst from circular radius mode to rectangular cell-bounds mode
 
 Examples:
@@ -82,6 +83,7 @@ Examples:
 - `S17 t(4,-2)`
 - `R s(1.2,0.8)`
 - `T c(0.25)`
+- `C3 h(0.35,0.65)`
 - `S19 b()`
 - `[C*S17] t(2,0) s(0.9)`
 
@@ -96,6 +98,7 @@ The grid system uses full primitive cell anchors for layout.
 - Translation via `t(...)` is applied after grid placement, so you can nudge geometry without changing which cell it belongs to.
 - Overlay via `*` is often the cleanest way to combine a structural shape with a long stroke.
 - `b()` is useful when starburst rays should reach the rectangle corners of the cell rather than points on the inscribed circle.
+- `h()` is useful for shapes like `pe`, where a circular arc should read more like the side of a heart than a strict half-circle.
 
 This matters for glyphs like `giml`, `kap`, `lamed`, `mem`, and `nun`, where a visible edge may only be one line but still needs to align as part of a full square cell.
 
@@ -106,6 +109,7 @@ Some definitions from the current Phoenician set:
 - `aleph: T5r270*S17`
 - `giml: T3r270|R2`
 - `tet: C*S170`
+- `pe: C3 h(0.35,0.65)`
 - `qop: [C*S17]|S1`
 - `sade: S19 b() S130 b()`
 - `mem: T5r180 T5r180 R8 | R0 R0 R8 | R0 R0 R8`

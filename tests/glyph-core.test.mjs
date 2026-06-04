@@ -64,6 +64,13 @@ test("suffix modifiers attach to primitives and grouped expressions", () => {
     boundedStarburstNode.modifiers.map((modifier) => [modifier.type, modifier.args]),
     [["bounds", []]]
   );
+
+  const heartArcAst = parseGlyphDefinition("C3 h(0.35,0.65)");
+  const heartArcNode = heartArcAst.rows[0][0];
+  assert.deepEqual(
+    heartArcNode.modifiers.map((modifier) => [modifier.type, modifier.args]),
+    [["heart", [0.35, 0.65]]]
+  );
 });
 
 test("modifier order is preserved left to right", () => {
@@ -158,6 +165,21 @@ test("b() switches starbursts to cell bounds mode", () => {
   ]);
 });
 
+test("h() warps visible arc segments into a half-heart profile", () => {
+  const compiled = compileGlyphDefinition("C3 h(0.35,0.65)");
+  const segments = visibleSegments(compiled.segments);
+
+  assert.deepEqual(
+    segments.map((segment) => segment.kind),
+    ["quadratic", "quadratic"]
+  );
+  assert(segments[0].control[0] < segments[1].control[0]);
+  assert(segments[0].control[1] < segments[0].start[1]);
+  assert(segments[1].control[1] > segments[1].end[1]);
+  assert(compiled.bbox.width > 30);
+  assert(compiled.bbox.height > 60);
+});
+
 test("grid keeps full cell anchors for edge-only cells", () => {
   const compiled = compileGlyphDefinition("T3r270|R2");
   const verticals = visibleSegments(compiled.segments).filter((segment) => (
@@ -219,6 +241,10 @@ test("selected glyph fixtures preserve expected compiled geometry", () => {
     qop: {
       counts: { arc: 4, line: 3 },
       bbox: { width: 60, height: 90, cx: 0, cy: -15 }
+    },
+    pe: {
+      counts: { quadratic: 2 },
+      bbox: { width: 35.5052, height: 67.6667, cx: 17.7526, cy: 0 }
     },
     sade: {
       counts: { line: 5 },

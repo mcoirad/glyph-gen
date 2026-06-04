@@ -22,7 +22,7 @@ export const phoenicianGlyphs = {
   nun: "T5r180 R8 | R0 R8 | R0 R8",
   samekh: "R3R9|R3R9|R3R9|R3R9",
   ayin: "C",
-  pe: "C3",
+  pe: "C3 h(0.35,0.65)",
   sade: "S19 b() S130 b()",
   qop: "[C*S17]|S1",
   res: "Tr270|R2",
@@ -124,7 +124,7 @@ export function tokenizeGlyphDefinition(input) {
       continue;
     }
 
-    if ("tscb".includes(char) && input[index + 1] === "(") {
+    if ("tschb".includes(char) && input[index + 1] === "(") {
       let end = index + 2;
       while (end < input.length && input[end] !== ")") {
         end += 1;
@@ -188,6 +188,18 @@ function normalizeCurveArgs(args) {
   }
 
   return args;
+}
+
+function normalizeHeartArgs(args) {
+  if (args.length === 1) {
+    return [args[0], args[0]];
+  }
+
+  if (args.length === 2) {
+    return args;
+  }
+
+  throw new Error("h(...) accepts one or two arguments");
 }
 
 function normalizeBoundsArgs(args) {
@@ -322,6 +334,13 @@ export function parseGlyphDefinition(input) {
       return {
         type: "curve",
         args: normalizeCurveArgs(token.args)
+      };
+    }
+
+    if (token.name === "h") {
+      return {
+        type: "heart",
+        args: normalizeHeartArgs(token.args)
       };
     }
 
@@ -612,6 +631,11 @@ function sampleArcPoint(segment, angle) {
   return translatePoint(rotated, segment.center[0], segment.center[1]);
 }
 
+function midpointForArc(segment) {
+  const angle = segment.startAngle + ((segment.endAngle - segment.startAngle) / 2);
+  return sampleArcPoint(segment, angle);
+}
+
 function sampleSegmentPoints(segment, steps = SAMPLE_STEPS) {
   if (segment.kind === "line") {
     return [segment.start, segment.end];
@@ -774,6 +798,45 @@ function applyModifierToSegments(segments, modifier) {
           midpoint[1] + normal[1] * offset
         ],
         end: clonePoint(segment.end),
+        visible: segment.visible !== false
+      };
+    });
+  }
+
+  if (modifier.type === "heart") {
+    const [lobeAmount, taperAmount] = modifier.args;
+
+    if (approxZero(lobeAmount) && approxZero(taperAmount)) {
+      return segments.map(cloneSegment);
+    }
+
+    return segments.map((segment) => {
+      if (segment.kind !== "arc") {
+        return cloneSegment(segment);
+      }
+
+      const start = sampleArcPoint(segment, segment.startAngle);
+      const end = sampleArcPoint(segment, segment.endAngle);
+      const midpoint = midpointForArc(segment);
+      const horizontalSign = Math.sign(midpoint[0] - segment.center[0]);
+      const verticalSign = Math.sign(midpoint[1] - segment.center[1]);
+
+      if (approxZero(horizontalSign) || approxZero(verticalSign)) {
+        return cloneSegment(segment);
+      }
+
+      const amount = verticalSign < 0 ? lobeAmount : taperAmount;
+      const controlLocal = [
+        horizontalSign * segment.radii[0] * (1 + amount),
+        verticalSign * segment.radii[1] * (1 + amount)
+      ];
+      const rotatedControl = rotatePoint(controlLocal, segment.rotation || 0);
+
+      return {
+        kind: "quadratic",
+        start,
+        control: translatePoint(rotatedControl, segment.center[0], segment.center[1]),
+        end,
         visible: segment.visible !== false
       };
     });
