@@ -2,13 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildBrushSegmentShape,
   compileGlyphDefinition,
   compileGlyphNode,
+  DEFAULT_SIZE,
   createPrimitiveNodeFromSpec,
   fitSegmentsToTarget,
   measureSegments,
   parseGlyphDefinition,
   phoenicianGlyphs,
+  renderGlyphNode,
   summarizeCompiledNode
 } from "../glyph-core.mjs";
 
@@ -28,6 +31,44 @@ function roundBBox(bbox) {
 
 function visibleSegments(segments) {
   return segments.filter((segment) => segment.visible !== false);
+}
+
+function roundPoint([x, y]) {
+  const clean = (value) => {
+    const rounded = Number(value.toFixed(4));
+    return Object.is(rounded, -0) ? 0 : rounded;
+  };
+
+  return [
+    clean(x),
+    clean(y)
+  ];
+}
+
+function createFakeGroup() {
+  const makeShape = () => ({
+    fill() {
+      return this;
+    },
+    stroke() {
+      return this;
+    },
+    attr() {
+      return this;
+    }
+  });
+
+  return {
+    line() {
+      return makeShape();
+    },
+    path() {
+      return makeShape();
+    },
+    polygon() {
+      return makeShape();
+    }
+  };
 }
 
 test("existing Phoenician glyph definitions still parse", () => {
@@ -116,6 +157,74 @@ test("c(0) preserves straight geometry and bbox", () => {
     ["line", "line", "line", "line"]
   );
   assert.deepEqual(roundBBox(base.bbox), roundBBox(curved.bbox));
+});
+
+test("line brush outline uses translated corners", () => {
+  const shape = buildBrushSegmentShape({
+    kind: "line",
+    start: [0, 0],
+    end: [10, 0],
+    visible: true
+  }, {
+    angle: 90,
+    thickness: 4
+  });
+
+  assert.equal(shape.kind, "polygon");
+  assert.deepEqual(shape.points.map(roundPoint), [
+    [0, 2],
+    [10, 2],
+    [10, -2],
+    [0, -2]
+  ]);
+});
+
+test("quadratic brush outline closes on translated endpoints", () => {
+  const shape = buildBrushSegmentShape({
+    kind: "quadratic",
+    start: [0, 0],
+    control: [5, 10],
+    end: [10, 0],
+    visible: true
+  }, {
+    angle: 90,
+    thickness: 4
+  });
+
+  assert.equal(shape.kind, "path");
+  assert.deepEqual(shape.commands.map((command) => command.type), ["M", "Q", "L", "Q", "Z"]);
+  assert.deepEqual(roundPoint(shape.commands[0].point), [0, 2]);
+  assert.deepEqual(roundPoint(shape.commands[1].control), [5, 12]);
+  assert.deepEqual(roundPoint(shape.commands[1].point), [10, 2]);
+  assert.deepEqual(roundPoint(shape.commands[2].point), [10, -2]);
+  assert.deepEqual(roundPoint(shape.commands[3].control), [5, 8]);
+  assert.deepEqual(roundPoint(shape.commands[3].point), [0, -2]);
+});
+
+test("arc brush outline preserves top arc flags and reverses lower sweep", () => {
+  const shape = buildBrushSegmentShape({
+    kind: "arc",
+    center: [0, 0],
+    radii: [30, 30],
+    startAngle: 0,
+    endAngle: Math.PI / 2,
+    rotation: 0,
+    visible: true
+  }, {
+    angle: 0,
+    thickness: 10
+  });
+
+  assert.equal(shape.kind, "path");
+  assert.deepEqual(shape.commands.map((command) => command.type), ["M", "A", "L", "A", "Z"]);
+  assert.deepEqual(roundPoint(shape.commands[0].point), [35, 0]);
+  assert.equal(shape.commands[1].largeArcFlag, 0);
+  assert.equal(shape.commands[1].sweepFlag, 1);
+  assert.deepEqual(roundPoint(shape.commands[1].point), [5, 30]);
+  assert.deepEqual(roundPoint(shape.commands[2].point), [-5, 30]);
+  assert.equal(shape.commands[3].largeArcFlag, 0);
+  assert.equal(shape.commands[3].sweepFlag, 0);
+  assert.deepEqual(roundPoint(shape.commands[3].point), [25, 0]);
 });
 
 test("bounded starburst reaches the rectangular bounds", () => {
@@ -303,4 +412,25 @@ test("compiled glyphs fit back into the default cell", () => {
   assert(bbox.height <= 60.0001);
   assert(Math.abs(bbox.cx) <= 0.0001);
   assert(Math.abs(bbox.cy) <= 0.0001);
+});
+
+test("brush render mode does not change fitted geometry", () => {
+  const node = parseGlyphDefinition(phoenicianGlyphs.pe);
+  const strokeGroup = createFakeGroup();
+  const brushGroup = createFakeGroup();
+  const stroked = renderGlyphNode(node, strokeGroup, {
+    targetWidth: DEFAULT_SIZE,
+    targetHeight: DEFAULT_SIZE
+  });
+  const brushed = renderGlyphNode(node, brushGroup, {
+    targetWidth: DEFAULT_SIZE,
+    targetHeight: DEFAULT_SIZE,
+    mode: "brush",
+    brush: {
+      angle: 30,
+      thickness: 8
+    }
+  });
+
+  assert.deepEqual(roundBBox(measureSegments(stroked)), roundBBox(measureSegments(brushed)));
 });

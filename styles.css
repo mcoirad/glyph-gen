@@ -60,6 +60,51 @@ body {
   box-shadow: var(--shadow);
 }
 
+.workspace-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.control-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(24, 33, 43, 0.1);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(244, 248, 252, 0.82)),
+    rgba(255, 255, 255, 0.84);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.control-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.control-label {
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.control-card output {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text);
+}
+
+.control-card input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: #b8742d;
+}
+
 .canvas-frame {
   overflow: auto;
   border-radius: 20px;
@@ -93,6 +138,10 @@ body {
   .workspace {
     padding: 12px;
     border-radius: 20px;
+  }
+
+  .workspace-controls {
+    grid-template-columns: 1fr;
   }
 
   .canvas-frame {

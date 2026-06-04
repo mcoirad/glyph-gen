@@ -21,6 +21,24 @@
     </header>
 
     <section class="workspace">
+      <div class="workspace-controls" aria-label="Brush preview controls">
+        <label class="control-card" for="brush-angle">
+          <span class="control-heading">
+            <span class="control-label">Nib Angle</span>
+            <output id="brush-angle-value" for="brush-angle">30°</output>
+          </span>
+          <input id="brush-angle" type="range" min="0" max="180" step="1" value="30">
+        </label>
+
+        <label class="control-card" for="brush-thickness">
+          <span class="control-heading">
+            <span class="control-label">Thickness</span>
+            <output id="brush-thickness-value" for="brush-thickness">8</output>
+          </span>
+          <input id="brush-thickness" type="range" min="2" max="18" step="0.5" value="8">
+        </label>
+      </div>
+
       <div class="canvas-frame">
         <div id="canvas" aria-label="Generated glyphs"></div>
       </div>
