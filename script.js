@@ -4,6 +4,7 @@ import {
 } from "./glyph-core.mjs";
 import {
   DEFAULT_GLYPH_SET,
+  futhorcGlyphs,
   getGlyphDefinitions,
   glyphSets,
   phoenicianGlyphs
@@ -11,6 +12,7 @@ import {
 import { renderGlyphNode } from "./glyph-render.mjs";
 
 const draw = SVG().addTo("#canvas").size(600, 600);
+const glyphSetInput = document.querySelector("#glyph-set");
 const profileInput = document.querySelector("#brush-profile");
 const segmentAngleInput = document.querySelector("#segment-angle");
 const segmentAngleValue = document.querySelector("#segment-angle-value");
@@ -29,9 +31,12 @@ const rectangleWidthValue = document.querySelector("#rectangle-width-value");
 const rectangleHeightInput = document.querySelector("#rectangle-height");
 const rectangleHeightValue = document.querySelector("#rectangle-height-value");
 const controlGroups = document.querySelectorAll("[data-profile-controls]");
-const activeGlyphSetName = DEFAULT_GLYPH_SET;
-const activeGlyphs = getGlyphDefinitions(activeGlyphSetName);
+const glyphSetLabels = {
+  phoenician: "Phoenician",
+  futhorc: "Futhorc"
+};
 const previewState = {
+  glyphSetName: DEFAULT_GLYPH_SET,
   mode: "brush",
   brush: {
     color: "#18212b",
@@ -77,6 +82,7 @@ function applyActiveProfile() {
 }
 
 function syncControls() {
+  glyphSetInput.value = previewState.glyphSetName;
   const activeKind = previewState.brush.profile.kind;
   const segment = previewState.profiles.segment;
   const circle = previewState.profiles.circle;
@@ -109,12 +115,31 @@ function syncControls() {
   });
 }
 
+function populateGlyphSetOptions() {
+  const options = Object.keys(glyphSets).map((setName) => {
+    const option = document.createElement("option");
+    option.value = setName;
+    option.textContent = glyphSetLabels[setName] || setName;
+    return option;
+  });
+
+  glyphSetInput.replaceChildren(...options);
+}
+
+function setActiveGlyphSet(name) {
+  getGlyphDefinitions(name);
+  previewState.glyphSetName = name;
+  syncControls();
+  renderGlyphTable();
+}
+
 function renderGlyphTable() {
   const cellSize = DEFAULT_SIZE;
   const spacing = 30;
   const labelHeight = 20;
   const effectiveSize = cellSize + spacing + labelHeight;
   const perRow = 6;
+  const activeGlyphs = getGlyphDefinitions(previewState.glyphSetName);
   const entries = Object.entries(activeGlyphs);
   const rows = Math.ceil(entries.length / perRow);
   const width = perRow * (cellSize + spacing);
@@ -145,16 +170,36 @@ function renderGlyphTable() {
 }
 
 window.GlyphGen = {
-  activeGlyphSetName,
-  activeGlyphs,
   DEFAULT_SIZE,
+  futhorcGlyphs,
   getGlyphDefinitions,
   glyphSets,
   parseGlyphDefinition,
   phoenicianGlyphs,
   previewState,
-  renderGlyphTable
+  renderGlyphTable,
+  setActiveGlyphSet
 };
+
+Object.defineProperties(window.GlyphGen, {
+  activeGlyphSetName: {
+    enumerable: true,
+    get() {
+      return previewState.glyphSetName;
+    }
+  },
+  activeGlyphs: {
+    enumerable: true,
+    get() {
+      return getGlyphDefinitions(previewState.glyphSetName);
+    }
+  }
+});
+
+populateGlyphSetOptions();
+glyphSetInput.addEventListener("input", () => {
+  setActiveGlyphSet(glyphSetInput.value);
+});
 
 profileInput.addEventListener("input", () => {
   previewState.brush.profile.kind = profileInput.value;

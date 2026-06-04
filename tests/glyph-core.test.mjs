@@ -14,10 +14,12 @@ import {
 import {
   DEFAULT_GLYPH_SET,
   defaultGlyphs,
+  futhorcGlyphs,
   getGlyphDefinitions,
   glyphSets,
   phoenicianGlyphs
 } from "../glyph-definitions.mjs";
+import { FUTHORC_GLYPH_KEYS } from "../futhorc-glyphs.mjs";
 import {
   buildBrushRenderShape,
   buildBrushSegmentShape,
@@ -87,11 +89,18 @@ test("existing Phoenician glyph definitions still parse", () => {
   }
 });
 
+test("futhorc glyph definitions parse", () => {
+  for (const definition of Object.values(futhorcGlyphs)) {
+    assert.doesNotThrow(() => parseGlyphDefinition(definition));
+  }
+});
+
 test("glyph definitions can be loaded generically by set name", () => {
   assert.equal(DEFAULT_GLYPH_SET, "phoenician");
-  assert.deepEqual(Object.keys(glyphSets), ["phoenician"]);
+  assert.deepEqual(Object.keys(glyphSets), ["phoenician", "futhorc"]);
   assert.equal(getGlyphDefinitions(), defaultGlyphs);
   assert.equal(getGlyphDefinitions("phoenician"), phoenicianGlyphs);
+  assert.equal(getGlyphDefinitions("futhorc"), futhorcGlyphs);
   assert.throws(() => getGlyphDefinitions("norse"), /Unknown glyph set: norse/);
 });
 
@@ -126,6 +135,13 @@ test("JSON-backed default glyph definitions preserve the expected shape", () => 
 
   assert.deepEqual(Object.keys(defaultGlyphs), expectedKeys);
   assert.ok(Object.values(defaultGlyphs).every((definition) => typeof definition === "string"));
+});
+
+test("JSON-backed futhorc glyph definitions preserve the expected shape", () => {
+  assert.equal(typeof futhorcGlyphs, "object");
+  assert.ok(futhorcGlyphs);
+  assert.deepEqual(Object.keys(futhorcGlyphs), FUTHORC_GLYPH_KEYS);
+  assert.ok(Object.values(futhorcGlyphs).every((definition) => typeof definition === "string"));
 });
 
 test("suffix modifiers attach to primitives and grouped expressions", () => {

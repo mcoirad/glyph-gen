@@ -7,7 +7,7 @@ This repo is now set up as a plain static site:
 - `script.js` is the browser entrypoint that renders the demo table
 - `glyph-core.mjs` holds the glyph grammar, parser, geometry, and layout pipeline
 - `glyph-render.mjs` holds the SVG rendering and brush/stroke output logic
-- `glyph-definitions.mjs` loads named glyph fixture sets from JSON files such as `phoenician-glyphs.json`
+- `glyph-definitions.mjs` loads named glyph fixture sets from JSON files such as `phoenician-glyphs.json` and `futhorc-glyphs.json`
 - `index-jsfiddle-yrkmvpas-11.html` is the original JSFiddle export kept for reference
 
 ## Local preview
@@ -18,7 +18,7 @@ From the repo root, run:
 python3 -m http.server 8000
 ```
 
-Then open [http://127.0.0.1:8000](http://127.0.0.1:8000).
+Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). The page defaults to the Phoenician set and lets you switch to the Futhorc set from the control bar.
 
 ## Glyph Grammar
 
@@ -116,7 +116,7 @@ Some definitions from the current Phoenician set in `phoenician-glyphs.json`:
 - `sade: S19 b() S130 b()`
 - `mem: T5r180 T5r180 R8 | R0 R0 R8 | R0 R0 R8`
 
-To add another set, create a sibling JSON file and register it in `glyph-definitions.mjs` under a new set name.
+To add another set, create a sibling JSON file and register it in `glyph-definitions.mjs` under a new set name. The preview selector is populated from those registered set names.
 
 ## Development Notes
 
