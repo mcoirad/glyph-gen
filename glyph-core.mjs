@@ -23,7 +23,7 @@ export const phoenicianGlyphs = {
   samekh: "R3R9|R3R9|R3R9|R3R9",
   ayin: "C",
   pe: "C3",
-  sade: "S19S130",
+  sade: "S19 b() S130 b()",
   qop: "[C*S17]|S1",
   res: "Tr270|R2",
   shin: "T5r180T5r180",
@@ -91,6 +91,9 @@ function tokenizePrimitive(input, startIndex) {
 
 function parseModifierArgs(rawArgs, name) {
   if (!rawArgs.trim()) {
+    if (name === "b") {
+      return [];
+    }
     throw new Error(`Modifier ${name} requires at least one argument`);
   }
 
@@ -121,7 +124,7 @@ export function tokenizeGlyphDefinition(input) {
       continue;
     }
 
-    if ("tsc".includes(char) && input[index + 1] === "(") {
+    if ("tscb".includes(char) && input[index + 1] === "(") {
       let end = index + 2;
       while (end < input.length && input[end] !== ")") {
         end += 1;
@@ -182,6 +185,14 @@ function normalizeTranslateArgs(args) {
 function normalizeCurveArgs(args) {
   if (args.length !== 1) {
     throw new Error("c(...) requires exactly one argument");
+  }
+
+  return args;
+}
+
+function normalizeBoundsArgs(args) {
+  if (args.length !== 0) {
+    throw new Error("b() does not take any arguments");
   }
 
   return args;
@@ -311,6 +322,13 @@ export function parseGlyphDefinition(input) {
       return {
         type: "curve",
         args: normalizeCurveArgs(token.args)
+      };
+    }
+
+    if (token.name === "b") {
+      return {
+        type: "bounds",
+        args: normalizeBoundsArgs(token.args)
       };
     }
 
@@ -543,6 +561,29 @@ function createPrimitiveLayoutSegments(node) {
       hiddenEdges: []
     }
   });
+}
+
+function applyPrimitiveSpecModifiers(node) {
+  const spec = structuredClone(node.spec);
+  const remainingModifiers = [];
+
+  node.modifiers.forEach((modifier) => {
+    if (modifier.type === "bounds") {
+      if (node.primitive !== "starburst") {
+        throw new Error("b() is only supported on starburst primitives");
+      }
+      spec.mode = "bounds";
+      return;
+    }
+
+    remainingModifiers.push(modifier);
+  });
+
+  return {
+    ...node,
+    spec,
+    modifiers: remainingModifiers
+  };
 }
 
 function rotatePoint([x, y], degrees) {
@@ -850,9 +891,10 @@ function compileOverlayComposite(node) {
 
 export function compileGlyphNode(node) {
   if (node.type === "primitive") {
-    const { layoutModifiers, postLayoutModifiers } = partitionModifiers(node.modifiers);
-    const layoutSegments = applyModifiers(createPrimitiveLayoutSegments(node), layoutModifiers);
-    const visibleSegments = applyModifiers(createPrimitiveSegments(node), layoutModifiers);
+    const modifiedNode = applyPrimitiveSpecModifiers(node);
+    const { layoutModifiers, postLayoutModifiers } = partitionModifiers(modifiedNode.modifiers);
+    const layoutSegments = applyModifiers(createPrimitiveLayoutSegments(modifiedNode), layoutModifiers);
+    const visibleSegments = applyModifiers(createPrimitiveSegments(modifiedNode), layoutModifiers);
     const segments = applyModifiers(visibleSegments, postLayoutModifiers);
     return {
       layoutSegments,

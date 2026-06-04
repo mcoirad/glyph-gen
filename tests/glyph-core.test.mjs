@@ -57,6 +57,13 @@ test("suffix modifiers attach to primitives and grouped expressions", () => {
       args: [2, 0]
     }
   ]);
+
+  const boundedStarburstAst = parseGlyphDefinition("S17 b()");
+  const boundedStarburstNode = boundedStarburstAst.rows[0][0];
+  assert.deepEqual(
+    boundedStarburstNode.modifiers.map((modifier) => [modifier.type, modifier.args]),
+    [["bounds", []]]
+  );
 });
 
 test("modifier order is preserved left to right", () => {
@@ -129,6 +136,28 @@ test("bounded starburst reaches the rectangular bounds", () => {
   assert(endpoints.some(([x, y]) => x === 30 && y === 30));
 });
 
+test("b() switches starbursts to cell bounds mode", () => {
+  const circular = compileGlyphDefinition("S19");
+  const bounded = compileGlyphDefinition("S19 b()");
+  const circularEndpoints = visibleSegments(circular.segments).map((segment) => (
+    segment.end.map((value) => Number(value.toFixed(4)))
+  ));
+  const boundedEndpoints = visibleSegments(bounded.segments).map((segment) => (
+    segment.end.map((value) => Number(value.toFixed(4)))
+  ));
+
+  assert.deepEqual(circularEndpoints, [
+    [0, -30],
+    [21.2132, -21.2132],
+    [0, 30]
+  ]);
+  assert.deepEqual(boundedEndpoints, [
+    [0, -30],
+    [30, -30],
+    [0, 30]
+  ]);
+});
+
 test("grid keeps full cell anchors for edge-only cells", () => {
   const compiled = compileGlyphDefinition("T3r270|R2");
   const verticals = visibleSegments(compiled.segments).filter((segment) => (
@@ -190,6 +219,10 @@ test("selected glyph fixtures preserve expected compiled geometry", () => {
     qop: {
       counts: { arc: 4, line: 3 },
       bbox: { width: 60, height: 90, cx: 0, cy: -15 }
+    },
+    sade: {
+      counts: { line: 5 },
+      bbox: { width: 90, height: 60, cx: 15, cy: 0 }
     },
     shin: {
       counts: { line: 4 },
