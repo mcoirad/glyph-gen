@@ -625,11 +625,14 @@ function renderFilledShape(group, shape, color) {
   throw new Error(`Unknown brush shape kind: ${shape.kind}`);
 }
 
-function renderStrokeSegment(group, segment, stroke) {
+function renderStrokeSegment(group, segment, stroke, extraAttrs = {}) {
   if (segment.kind === "line") {
     group.line(segment.start[0], segment.start[1], segment.end[0], segment.end[1])
       .stroke(stroke)
-      .attr({ "vector-effect": "non-scaling-stroke" });
+      .attr({
+        "vector-effect": "non-scaling-stroke",
+        ...extraAttrs
+      });
     return;
   }
 
@@ -641,7 +644,10 @@ function renderStrokeSegment(group, segment, stroke) {
     group.path(path)
       .fill("none")
       .stroke(stroke)
-      .attr({ "vector-effect": "non-scaling-stroke" });
+      .attr({
+        "vector-effect": "non-scaling-stroke",
+        ...extraAttrs
+      });
     return;
   }
 
@@ -654,14 +660,32 @@ function renderStrokeSegment(group, segment, stroke) {
     group.path(path)
       .fill("none")
       .stroke(stroke)
-      .attr({ "vector-effect": "non-scaling-stroke" });
+      .attr({
+        "vector-effect": "non-scaling-stroke",
+        ...extraAttrs
+      });
     return;
   }
 
   throw new Error(`Unknown segment kind: ${segment.kind}`);
 }
 
+function renderCircleBrushSegment(group, segment, brush) {
+  renderStrokeSegment(group, segment, {
+    width: brush.profile.diameter,
+    color: brush.color
+  }, {
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round"
+  });
+}
+
 function renderBrushSegment(group, segment, brush) {
+  if (brush.profile.kind === "circle") {
+    renderCircleBrushSegment(group, segment, brush);
+    return;
+  }
+
   renderFilledShape(group, buildBrushRenderShape(segment, brush), brush.color);
 }
 
