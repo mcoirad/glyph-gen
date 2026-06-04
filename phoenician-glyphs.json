@@ -16,7 +16,7 @@
   "samekh": "R3R9|R3R9|R3R9|R3R9",
   "ayin": "C",
   "pe": "C3 h(0.95,-0.25)",
-  "sade": "S19 b() S130 b()",
+  "sade": "S19 b() S130 b() | S17 R0",
   "qop": "[C*S17]|S1",
   "res": "Tr270|R2",
   "shin": "T5r180T5r180",

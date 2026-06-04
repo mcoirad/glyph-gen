@@ -6,7 +6,7 @@ export const glyphSets = Object.freeze({
   futhorc: futhorcGlyphs
 });
 
-export const DEFAULT_GLYPH_SET = "phoenician";
+export const DEFAULT_GLYPH_SET = "futhorc";
 
 export function getGlyphDefinitions(setName = DEFAULT_GLYPH_SET) {
   const glyphs = glyphSets[setName];
