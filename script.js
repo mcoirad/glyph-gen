@@ -13,6 +13,10 @@ const segmentLengthInput = document.querySelector("#segment-length");
 const segmentLengthValue = document.querySelector("#segment-length-value");
 const circleDiameterInput = document.querySelector("#circle-diameter");
 const circleDiameterValue = document.querySelector("#circle-diameter-value");
+const circleTaperStartInput = document.querySelector("#circle-taper-start");
+const circleTaperStartValue = document.querySelector("#circle-taper-start-value");
+const circleTaperEndInput = document.querySelector("#circle-taper-end");
+const circleTaperEndValue = document.querySelector("#circle-taper-end-value");
 const rectangleAngleInput = document.querySelector("#rectangle-angle");
 const rectangleAngleValue = document.querySelector("#rectangle-angle-value");
 const rectangleWidthInput = document.querySelector("#rectangle-width");
@@ -38,7 +42,9 @@ const previewState = {
     },
     circle: {
       kind: "circle",
-      diameter: 8
+      diameter: 8,
+      taperStart: 0,
+      taperEnd: 0
     },
     rectangle: {
       kind: "rectangle",
@@ -78,6 +84,10 @@ function syncControls() {
 
   circleDiameterInput.value = String(circle.diameter);
   circleDiameterValue.textContent = formatControlValue(circle.diameter);
+  circleTaperStartInput.value = String(circle.taperStart * 100);
+  circleTaperStartValue.textContent = `${Math.round(circle.taperStart * 100)}%`;
+  circleTaperEndInput.value = String(circle.taperEnd * 100);
+  circleTaperEndValue.textContent = `${Math.round(circle.taperEnd * 100)}%`;
 
   rectangleAngleInput.value = String(rectangle.angle);
   rectangleAngleValue.textContent = `${formatControlValue(rectangle.angle)}°`;
@@ -158,6 +168,20 @@ segmentLengthInput.addEventListener("input", () => {
 
 circleDiameterInput.addEventListener("input", () => {
   previewState.profiles.circle.diameter = Number.parseFloat(circleDiameterInput.value);
+  syncControls();
+  applyActiveProfile();
+  renderGlyphTable();
+});
+
+circleTaperStartInput.addEventListener("input", () => {
+  previewState.profiles.circle.taperStart = Number.parseFloat(circleTaperStartInput.value) / 100;
+  syncControls();
+  applyActiveProfile();
+  renderGlyphTable();
+});
+
+circleTaperEndInput.addEventListener("input", () => {
+  previewState.profiles.circle.taperEnd = Number.parseFloat(circleTaperEndInput.value) / 100;
   syncControls();
   applyActiveProfile();
   renderGlyphTable();

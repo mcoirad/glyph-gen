@@ -57,6 +57,22 @@
           <input id="circle-diameter" type="range" min="2" max="18" step="0.5" value="8">
         </label>
 
+        <label class="control-card" for="circle-taper-start" data-profile-controls="circle" hidden>
+          <span class="control-heading">
+            <span class="control-label">Taper In</span>
+            <output id="circle-taper-start-value" for="circle-taper-start">0%</output>
+          </span>
+          <input id="circle-taper-start" type="range" min="0" max="100" step="5" value="0">
+        </label>
+
+        <label class="control-card" for="circle-taper-end" data-profile-controls="circle" hidden>
+          <span class="control-heading">
+            <span class="control-label">Taper Out</span>
+            <output id="circle-taper-end-value" for="circle-taper-end">0%</output>
+          </span>
+          <input id="circle-taper-end" type="range" min="0" max="100" step="5" value="0">
+        </label>
+
         <label class="control-card" for="rectangle-angle" data-profile-controls="rectangle" hidden>
           <span class="control-heading">
             <span class="control-label">Rectangle Angle</span>

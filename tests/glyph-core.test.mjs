@@ -233,6 +233,25 @@ test("legacy segment brush options normalize to a segment profile", () => {
   });
 });
 
+test("circle brush options normalize taper settings", () => {
+  const brush = normalizeBrushOptions({
+    diameter: 10,
+    taperStart: 0.25,
+    taperEnd: 0.5,
+    color: "#abcdef"
+  });
+
+  assert.deepEqual(brush, {
+    color: "#abcdef",
+    profile: {
+      kind: "circle",
+      diameter: 10,
+      taperStart: 0.25,
+      taperEnd: 0.5
+    }
+  });
+});
+
 test("quadratic brush outline closes on translated endpoints", () => {
   const shape = buildBrushSegmentShape({
     kind: "quadratic",
@@ -275,6 +294,37 @@ test("circle line brush renders as a capsule path", () => {
   assert.deepEqual(roundPoint(shape.commands[2].point), [10, -2]);
   assert.deepEqual(roundPoint(shape.commands[3].point), [0, -2]);
   assert.deepEqual(roundPoint(shape.commands[4].point), [0, 2]);
+});
+
+test("circle line brush can taper at both ends", () => {
+  const shape = buildBrushRenderShape({
+    kind: "line",
+    start: [0, 0],
+    end: [10, 0],
+    visible: true
+  }, {
+    profile: {
+      kind: "circle",
+      diameter: 4,
+      taperStart: 0.5,
+      taperEnd: 0.5
+    }
+  }, {
+    taper: {
+      start: 0.5,
+      end: 0.5
+    }
+  });
+
+  assert.equal(shape.kind, "polygon");
+  assert(shape.points.some((point) => (
+    roundPoint(point)[0] === 0 && roundPoint(point)[1] === 0
+  )));
+  assert(shape.points.some((point) => (
+    roundPoint(point)[0] === 10 && roundPoint(point)[1] === 0
+  )));
+  assert(shape.points.some((point) => roundPoint(point)[1] === 2));
+  assert(shape.points.some((point) => roundPoint(point)[1] === -2));
 });
 
 test("arc brush outline preserves top arc flags and reverses lower sweep", () => {

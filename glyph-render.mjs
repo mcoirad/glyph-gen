@@ -7,7 +7,7 @@ import {
 const DEFAULT_STROKE = { width: 2, color: "#000" };
 const DEFAULT_BRUSH_COLOR = "#000";
 const DEFAULT_SEGMENT_PROFILE = { kind: "segment", angle: 30, length: 8 };
-const DEFAULT_CIRCLE_PROFILE = { kind: "circle", diameter: 8 };
+const DEFAULT_CIRCLE_PROFILE = { kind: "circle", diameter: 8, taperStart: 0, taperEnd: 0 };
 const DEFAULT_RECTANGLE_PROFILE = { kind: "rectangle", angle: 30, width: 10, height: 4 };
 const EPSILON = 1e-6;
 
@@ -46,11 +46,24 @@ function sampleQuadraticPoint(segment, t) {
   ];
 }
 
+function sampleQuadraticTangent(segment, t) {
+  return [
+    (2 * (1 - t) * (segment.control[0] - segment.start[0])) + (2 * t * (segment.end[0] - segment.control[0])),
+    (2 * (1 - t) * (segment.control[1] - segment.start[1])) + (2 * t * (segment.end[1] - segment.control[1]))
+  ];
+}
+
 function sampleArcPoint(segment, angle) {
   const [rx, ry] = segment.radii;
   const localPoint = [Math.cos(angle) * rx, Math.sin(angle) * ry];
   const rotated = rotatePoint(localPoint, segment.rotation || 0);
   return translatePoint(rotated, segment.center[0], segment.center[1]);
+}
+
+function sampleArcTangent(segment, angle) {
+  const [rx, ry] = segment.radii;
+  const localTangent = [-Math.sin(angle) * rx, Math.cos(angle) * ry];
+  return rotatePoint(localTangent, segment.rotation || 0);
 }
 
 function normalizeBrushProfile(profile = {}) {
@@ -67,7 +80,9 @@ function normalizeBrushProfile(profile = {}) {
   if (kind === "circle") {
     return {
       kind,
-      diameter: Math.max(0, profile.diameter ?? DEFAULT_CIRCLE_PROFILE.diameter)
+      diameter: Math.max(0, profile.diameter ?? DEFAULT_CIRCLE_PROFILE.diameter),
+      taperStart: Math.max(0, Math.min(1, profile.taperStart ?? DEFAULT_CIRCLE_PROFILE.taperStart)),
+      taperEnd: Math.max(0, Math.min(1, profile.taperEnd ?? DEFAULT_CIRCLE_PROFILE.taperEnd))
     };
   }
 
@@ -98,7 +113,9 @@ export function normalizeBrushOptions(brush = {}, fallbackColor = DEFAULT_STROKE
       color,
       profile: normalizeBrushProfile({
         kind: "circle",
-        diameter: brush.diameter
+        diameter: brush.diameter,
+        taperStart: brush.taperStart,
+        taperEnd: brush.taperEnd
       })
     };
   }
@@ -324,6 +341,61 @@ function sampleSegmentPoints(segment, steps = estimateSampleSteps(segment)) {
   throw new Error(`Unknown segment kind: ${segment.kind}`);
 }
 
+function sampleSegmentFrames(segment, steps = estimateSampleSteps(segment)) {
+  if (segment.kind === "line") {
+    const dx = segment.end[0] - segment.start[0];
+    const dy = segment.end[1] - segment.start[1];
+    const frames = [];
+
+    for (let index = 0; index <= steps; index += 1) {
+      const t = index / steps;
+      frames.push({
+        t,
+        point: [
+          segment.start[0] + (dx * t),
+          segment.start[1] + (dy * t)
+        ],
+        tangent: [dx, dy]
+      });
+    }
+
+    return frames;
+  }
+
+  if (segment.kind === "quadratic") {
+    const frames = [];
+
+    for (let index = 0; index <= steps; index += 1) {
+      const t = index / steps;
+      frames.push({
+        t,
+        point: sampleQuadraticPoint(segment, t),
+        tangent: sampleQuadraticTangent(segment, t)
+      });
+    }
+
+    return frames;
+  }
+
+  if (segment.kind === "arc") {
+    const frames = [];
+
+    for (let index = 0; index <= steps; index += 1) {
+      const t = index / steps;
+      const angle = segment.startAngle + ((segment.endAngle - segment.startAngle) * t);
+      frames.push({
+        t,
+        point: sampleArcPoint(segment, angle),
+        tangent: sampleArcTangent(segment, angle)
+      });
+    }
+
+    return frames;
+  }
+
+  throw new Error(`Unknown segment kind: ${segment.kind}`);
+}
+
 function translatePolygon(points, dx, dy) {
   return points.map((point) => translatePoint(point, dx, dy));
 }
@@ -394,6 +466,79 @@ function segmentHalfVector(profile) {
     Math.cos(radians) * halfLength,
     Math.sin(radians) * halfLength
   ];
+}
+
+function normalizeVector([x, y]) {
+  const length = Math.hypot(x, y);
+
+  if (length <= EPSILON) {
+    return [0, 0];
+  }
+
+  return [x / length, y / length];
+}
+
+function endpointKey([x, y]) {
+  return `${x.toFixed(4)},${y.toFixed(4)}`;
+}
+
+function getSegmentEndpoints(segment) {
+  if (segment.kind === "line" || segment.kind === "quadratic") {
+    return {
+      start: clonePoint(segment.start),
+      end: clonePoint(segment.end)
+    };
+  }
+
+  if (segment.kind === "arc") {
+    return arcEndpoints(segment);
+  }
+
+  throw new Error(`Unknown segment kind: ${segment.kind}`);
+}
+
+function taperScaleAt(t, taperStart, taperEnd) {
+  let scale = 1;
+
+  if (taperStart > 0 && t < taperStart) {
+    scale = Math.min(scale, t / taperStart);
+  }
+
+  if (taperEnd > 0 && t > (1 - taperEnd)) {
+    scale = Math.min(scale, (1 - t) / taperEnd);
+  }
+
+  return Math.max(0, Math.min(1, scale));
+}
+
+function buildTaperedCircleShape(segment, profile, taper = {}) {
+  const radius = profile.diameter / 2;
+  const frames = sampleSegmentFrames(segment, Math.max(estimateSampleSteps(segment), 12));
+  const taperStart = taper.start ?? profile.taperStart ?? 0;
+  const taperEnd = taper.end ?? profile.taperEnd ?? 0;
+  const left = [];
+  const right = [];
+
+  frames.forEach((frame) => {
+    const scale = taperScaleAt(frame.t, taperStart, taperEnd);
+    const localRadius = radius * scale;
+    const tangent = normalizeVector(frame.tangent);
+    const normal = [-tangent[1], tangent[0]];
+
+    left.push([
+      frame.point[0] + (normal[0] * localRadius),
+      frame.point[1] + (normal[1] * localRadius)
+    ]);
+    right.push([
+      frame.point[0] - (normal[0] * localRadius),
+      frame.point[1] - (normal[1] * localRadius)
+    ]);
+  });
+
+  return {
+    kind: "polygon",
+    points: left.concat(right.reverse())
+  };
 }
 
 export function buildBrushSegmentShape(segment, brushOptions = {}) {
@@ -566,7 +711,11 @@ function buildCircleArcBrushShape(segment, profile) {
   };
 }
 
-function buildCircleBrushShape(segment, profile) {
+function buildCircleBrushShape(segment, profile, taper = {}) {
+  if ((taper.start ?? profile.taperStart ?? 0) > 0 || (taper.end ?? profile.taperEnd ?? 0) > 0) {
+    return buildTaperedCircleShape(segment, profile, taper);
+  }
+
   if (segment.kind === "line") {
     return buildCircleLineBrushShape(segment, profile);
   }
@@ -582,7 +731,7 @@ function buildRectangleBrushShape(segment, profile) {
   return buildPolygonSweepShape(segment, createRectangleStampPoints(profile));
 }
 
-export function buildBrushRenderShape(segment, brushOptions = {}) {
+export function buildBrushRenderShape(segment, brushOptions = {}, context = {}) {
   const { profile } = normalizeBrushOptions(brushOptions);
 
   if (profile.kind === "segment") {
@@ -592,7 +741,7 @@ export function buildBrushRenderShape(segment, brushOptions = {}) {
   }
 
   if (profile.kind === "circle") {
-    return buildCircleBrushShape(segment, profile);
+    return buildCircleBrushShape(segment, profile, context.taper);
   }
 
   if (profile.kind === "rectangle") {
@@ -670,7 +819,20 @@ function renderStrokeSegment(group, segment, stroke, extraAttrs = {}) {
   throw new Error(`Unknown segment kind: ${segment.kind}`);
 }
 
-function renderCircleBrushSegment(group, segment, brush) {
+function renderCircleBrushSegment(group, segment, brush, context = {}) {
+  const taperStart = context.taper?.start ?? brush.profile.taperStart ?? 0;
+  const taperEnd = context.taper?.end ?? brush.profile.taperEnd ?? 0;
+
+  if (taperStart > 0 || taperEnd > 0) {
+    renderFilledShape(group, buildBrushRenderShape(segment, brush, {
+      taper: {
+        start: taperStart,
+        end: taperEnd
+      }
+    }), brush.color);
+    return;
+  }
+
   renderStrokeSegment(group, segment, {
     width: brush.profile.diameter,
     color: brush.color
@@ -680,17 +842,38 @@ function renderCircleBrushSegment(group, segment, brush) {
   });
 }
 
-function renderBrushSegment(group, segment, brush) {
+function renderBrushSegment(group, segment, brush, context = {}) {
   if (brush.profile.kind === "circle") {
-    renderCircleBrushSegment(group, segment, brush);
+    renderCircleBrushSegment(group, segment, brush, context);
     return;
   }
 
-  renderFilledShape(group, buildBrushRenderShape(segment, brush), brush.color);
+  renderFilledShape(group, buildBrushRenderShape(segment, brush, context), brush.color);
+}
+
+function buildEndpointUsage(segments) {
+  const counts = new Map();
+
+  segments.forEach((segment) => {
+    if (segment.visible === false) {
+      return;
+    }
+
+    const endpoints = getSegmentEndpoints(segment);
+    [endpoints.start, endpoints.end].forEach((point) => {
+      const key = endpointKey(point);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+  });
+
+  return counts;
 }
 
 export function renderSegments(group, segments, options = {}) {
   const renderOptions = normalizeRenderOptions(options);
+  const endpointUsage = renderOptions.mode === "brush" && renderOptions.brush.profile.kind === "circle"
+    ? buildEndpointUsage(segments)
+    : null;
 
   segments.forEach((segment) => {
     if (segment.visible === false) {
@@ -698,7 +881,17 @@ export function renderSegments(group, segments, options = {}) {
     }
 
     if (renderOptions.mode === "brush") {
-      renderBrushSegment(group, segment, renderOptions.brush);
+      const brushContext = {};
+
+      if (endpointUsage) {
+        const endpoints = getSegmentEndpoints(segment);
+        brushContext.taper = {
+          start: (endpointUsage.get(endpointKey(endpoints.start)) || 0) > 1 ? 0 : renderOptions.brush.profile.taperStart,
+          end: (endpointUsage.get(endpointKey(endpoints.end)) || 0) > 1 ? 0 : renderOptions.brush.profile.taperEnd
+        };
+      }
+
+      renderBrushSegment(group, segment, renderOptions.brush, brushContext);
       return;
     }
 
