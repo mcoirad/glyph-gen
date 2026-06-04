@@ -5,7 +5,9 @@ This repo is now set up as a plain static site:
 - `index.html` holds the page markup
 - `styles.css` holds the page styles
 - `script.js` is the browser entrypoint that renders the demo table
-- `glyph-core.mjs` holds the glyph grammar, parser, geometry, layout, and SVG rendering pipeline
+- `glyph-core.mjs` holds the glyph grammar, parser, geometry, and layout pipeline
+- `glyph-render.mjs` holds the SVG rendering and brush/stroke output logic
+- `glyph-definitions.mjs` loads the glyph fixture set from `glyphs.json`
 - `index-jsfiddle-yrkmvpas-11.html` is the original JSFiddle export kept for reference
 
 ## Local preview
@@ -104,7 +106,7 @@ This matters for glyphs like `giml`, `kap`, `lamed`, `mem`, and `nun`, where a v
 
 ## Examples
 
-Some definitions from the current Phoenician set:
+Some definitions from the current Phoenician set in `glyphs.json`:
 
 - `aleph: T5r270*S17`
 - `giml: T3r270|R2`
@@ -116,13 +118,14 @@ Some definitions from the current Phoenician set:
 
 ## Development Notes
 
-The current pipeline in `glyph-core.mjs` is:
+The current pipeline is split across `glyph-core.mjs` and `glyph-render.mjs`:
 
 1. tokenize
 2. parse into an AST
 3. compile primitives/composites into geometry
 4. measure and place geometry in the grid
-5. render SVG paths and lines
+5. fit geometry into the preview cell
+6. render SVG paths and lines
 
 There is a small Node test suite for parser and geometry behavior:
 

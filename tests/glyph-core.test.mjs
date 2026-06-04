@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  buildBrushSegmentShape,
   compileGlyphDefinition,
   compileGlyphNode,
   DEFAULT_SIZE,
@@ -10,10 +9,13 @@ import {
   fitSegmentsToTarget,
   measureSegments,
   parseGlyphDefinition,
-  phoenicianGlyphs,
-  renderGlyphNode,
   summarizeCompiledNode
 } from "../glyph-core.mjs";
+import { phoenicianGlyphs } from "../glyph-definitions.mjs";
+import {
+  buildBrushSegmentShape,
+  renderGlyphNode
+} from "../glyph-render.mjs";
 
 function roundBBox(bbox) {
   const clean = (value) => {
@@ -75,6 +77,39 @@ test("existing Phoenician glyph definitions still parse", () => {
   for (const definition of Object.values(phoenicianGlyphs)) {
     assert.doesNotThrow(() => parseGlyphDefinition(definition));
   }
+});
+
+test("JSON-backed glyph definitions preserve the expected shape", () => {
+  assert.equal(typeof phoenicianGlyphs, "object");
+  assert.ok(phoenicianGlyphs);
+
+  const expectedKeys = [
+    "aleph",
+    "bet",
+    "giml",
+    "delat",
+    "he",
+    "waw",
+    "tet",
+    "zayin",
+    "het",
+    "yod",
+    "kap",
+    "lamed",
+    "mem",
+    "nun",
+    "samekh",
+    "ayin",
+    "pe",
+    "sade",
+    "qop",
+    "res",
+    "shin",
+    "taw"
+  ];
+
+  assert.deepEqual(Object.keys(phoenicianGlyphs), expectedKeys);
+  assert.ok(Object.values(phoenicianGlyphs).every((definition) => typeof definition === "string"));
 });
 
 test("suffix modifiers attach to primitives and grouped expressions", () => {

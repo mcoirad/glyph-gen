@@ -1,9 +1,9 @@
 import {
   DEFAULT_SIZE,
-  parseGlyphDefinition,
-  phoenicianGlyphs,
-  renderGlyphNode
+  parseGlyphDefinition
 } from "./glyph-core.mjs";
+import { phoenicianGlyphs } from "./glyph-definitions.mjs";
+import { renderGlyphNode } from "./glyph-render.mjs";
 
 const draw = SVG().addTo("#canvas").size(600, 600);
 const angleInput = document.querySelector("#brush-angle");
