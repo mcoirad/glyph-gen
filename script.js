@@ -2,7 +2,12 @@ import {
   DEFAULT_SIZE,
   parseGlyphDefinition
 } from "./glyph-core.mjs";
-import { phoenicianGlyphs } from "./glyph-definitions.mjs";
+import {
+  DEFAULT_GLYPH_SET,
+  getGlyphDefinitions,
+  glyphSets,
+  phoenicianGlyphs
+} from "./glyph-definitions.mjs";
 import { renderGlyphNode } from "./glyph-render.mjs";
 
 const draw = SVG().addTo("#canvas").size(600, 600);
@@ -24,6 +29,8 @@ const rectangleWidthValue = document.querySelector("#rectangle-width-value");
 const rectangleHeightInput = document.querySelector("#rectangle-height");
 const rectangleHeightValue = document.querySelector("#rectangle-height-value");
 const controlGroups = document.querySelectorAll("[data-profile-controls]");
+const activeGlyphSetName = DEFAULT_GLYPH_SET;
+const activeGlyphs = getGlyphDefinitions(activeGlyphSetName);
 const previewState = {
   mode: "brush",
   brush: {
@@ -108,7 +115,7 @@ function renderGlyphTable() {
   const labelHeight = 20;
   const effectiveSize = cellSize + spacing + labelHeight;
   const perRow = 6;
-  const entries = Object.entries(phoenicianGlyphs);
+  const entries = Object.entries(activeGlyphs);
   const rows = Math.ceil(entries.length / perRow);
   const width = perRow * (cellSize + spacing);
   const height = rows * effectiveSize + 20;
@@ -138,7 +145,11 @@ function renderGlyphTable() {
 }
 
 window.GlyphGen = {
+  activeGlyphSetName,
+  activeGlyphs,
   DEFAULT_SIZE,
+  getGlyphDefinitions,
+  glyphSets,
   parseGlyphDefinition,
   phoenicianGlyphs,
   previewState,

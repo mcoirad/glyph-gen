@@ -7,7 +7,7 @@ This repo is now set up as a plain static site:
 - `script.js` is the browser entrypoint that renders the demo table
 - `glyph-core.mjs` holds the glyph grammar, parser, geometry, and layout pipeline
 - `glyph-render.mjs` holds the SVG rendering and brush/stroke output logic
-- `glyph-definitions.mjs` loads the glyph fixture set from `glyphs.json`
+- `glyph-definitions.mjs` loads named glyph fixture sets from JSON files such as `phoenician-glyphs.json`
 - `index-jsfiddle-yrkmvpas-11.html` is the original JSFiddle export kept for reference
 
 ## Local preview
@@ -106,7 +106,7 @@ This matters for glyphs like `giml`, `kap`, `lamed`, `mem`, and `nun`, where a v
 
 ## Examples
 
-Some definitions from the current Phoenician set in `glyphs.json`:
+Some definitions from the current Phoenician set in `phoenician-glyphs.json`:
 
 - `aleph: T5r270*S17`
 - `giml: T3r270|R2`
@@ -115,6 +115,8 @@ Some definitions from the current Phoenician set in `glyphs.json`:
 - `qop: [C*S17]|S1`
 - `sade: S19 b() S130 b()`
 - `mem: T5r180 T5r180 R8 | R0 R0 R8 | R0 R0 R8`
+
+To add another set, create a sibling JSON file and register it in `glyph-definitions.mjs` under a new set name.
 
 ## Development Notes
 
