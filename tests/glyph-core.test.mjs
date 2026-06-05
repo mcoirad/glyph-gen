@@ -17,9 +17,11 @@ import {
   futhorcGlyphs,
   getGlyphDefinitions,
   glyphSets,
-  phoenicianGlyphs
+  phoenicianGlyphs,
+  romanGlyphs
 } from "../glyph-definitions.mjs";
 import { FUTHORC_GLYPH_KEYS } from "../futhorc-glyphs.mjs";
+import { ROMAN_GLYPH_KEYS } from "../roman-glyphs.mjs";
 import {
   buildBrushRenderShape,
   buildBrushSegmentShape,
@@ -95,18 +97,39 @@ test("futhorc glyph definitions parse", () => {
   }
 });
 
+test("roman glyph definitions parse", () => {
+  for (const definition of Object.values(romanGlyphs)) {
+    assert.doesNotThrow(() => parseGlyphDefinition(definition));
+  }
+});
+
 test("glyph definitions can be loaded generically by set name", () => {
-  assert.equal(DEFAULT_GLYPH_SET, "phoenician");
-  assert.deepEqual(Object.keys(glyphSets), ["phoenician", "futhorc"]);
+  assert.equal(DEFAULT_GLYPH_SET, "futhorc");
+  assert.deepEqual(Object.keys(glyphSets), ["phoenician", "futhorc", "roman"]);
   assert.equal(getGlyphDefinitions(), defaultGlyphs);
-  assert.equal(getGlyphDefinitions("phoenician"), phoenicianGlyphs);
   assert.equal(getGlyphDefinitions("futhorc"), futhorcGlyphs);
+  assert.equal(getGlyphDefinitions("phoenician"), phoenicianGlyphs);
+  assert.equal(getGlyphDefinitions("roman"), romanGlyphs);
   assert.throws(() => getGlyphDefinitions("norse"), /Unknown glyph set: norse/);
 });
 
 test("JSON-backed default glyph definitions preserve the expected shape", () => {
   assert.equal(typeof defaultGlyphs, "object");
   assert.ok(defaultGlyphs);
+  assert.deepEqual(Object.keys(defaultGlyphs), FUTHORC_GLYPH_KEYS);
+  assert.ok(Object.values(defaultGlyphs).every((definition) => typeof definition === "string"));
+});
+
+test("JSON-backed futhorc glyph definitions preserve the expected shape", () => {
+  assert.equal(typeof futhorcGlyphs, "object");
+  assert.ok(futhorcGlyphs);
+  assert.deepEqual(Object.keys(futhorcGlyphs), FUTHORC_GLYPH_KEYS);
+  assert.ok(Object.values(futhorcGlyphs).every((definition) => typeof definition === "string"));
+});
+
+test("JSON-backed phoenician glyph definitions preserve the expected shape", () => {
+  assert.equal(typeof phoenicianGlyphs, "object");
+  assert.ok(phoenicianGlyphs);
 
   const expectedKeys = [
     "aleph",
@@ -133,15 +156,15 @@ test("JSON-backed default glyph definitions preserve the expected shape", () => 
     "taw"
   ];
 
-  assert.deepEqual(Object.keys(defaultGlyphs), expectedKeys);
-  assert.ok(Object.values(defaultGlyphs).every((definition) => typeof definition === "string"));
+  assert.deepEqual(Object.keys(phoenicianGlyphs), expectedKeys);
+  assert.ok(Object.values(phoenicianGlyphs).every((definition) => typeof definition === "string"));
 });
 
-test("JSON-backed futhorc glyph definitions preserve the expected shape", () => {
-  assert.equal(typeof futhorcGlyphs, "object");
-  assert.ok(futhorcGlyphs);
-  assert.deepEqual(Object.keys(futhorcGlyphs), FUTHORC_GLYPH_KEYS);
-  assert.ok(Object.values(futhorcGlyphs).every((definition) => typeof definition === "string"));
+test("JSON-backed roman glyph definitions preserve the expected shape", () => {
+  assert.equal(typeof romanGlyphs, "object");
+  assert.ok(romanGlyphs);
+  assert.deepEqual(Object.keys(romanGlyphs), ROMAN_GLYPH_KEYS);
+  assert.ok(Object.values(romanGlyphs).every((definition) => typeof definition === "string"));
 });
 
 test("suffix modifiers attach to primitives and grouped expressions", () => {
@@ -583,8 +606,8 @@ test("selected glyph fixtures preserve expected compiled geometry", () => {
       bbox: { width: 39.3333, height: 69.3333, cx: 19.6667, cy: 0 }
     },
     sade: {
-      counts: { line: 5 },
-      bbox: { width: 90, height: 60, cx: 15, cy: 0 }
+      counts: { line: 7 },
+      bbox: { width: 90, height: 120, cx: 15, cy: 0 }
     },
     shin: {
       counts: { line: 4 },
@@ -593,7 +616,7 @@ test("selected glyph fixtures preserve expected compiled geometry", () => {
   };
 
   for (const [name, expected] of Object.entries(fixtures)) {
-    const summary = summarizeCompiledNode(parseGlyphDefinition(defaultGlyphs[name]));
+    const summary = summarizeCompiledNode(parseGlyphDefinition(phoenicianGlyphs[name]));
     assert.deepEqual(summary.counts, expected.counts);
     assert.deepEqual(roundBBox(summary.bbox), expected.bbox);
   }
@@ -614,8 +637,8 @@ test("mem and nun keep their spine on the right side", () => {
     };
   };
 
-  const mem = findTallVerticalSegments(defaultGlyphs.mem);
-  const nun = findTallVerticalSegments(defaultGlyphs.nun);
+  const mem = findTallVerticalSegments(phoenicianGlyphs.mem);
+  const nun = findTallVerticalSegments(phoenicianGlyphs.nun);
 
   assert.equal(mem.verticals.length, 3);
   assert(mem.verticals.every((segment) => (
@@ -631,7 +654,7 @@ test("mem and nun keep their spine on the right side", () => {
 });
 
 test("compiled glyphs fit back into the default cell", () => {
-  const compiled = compileGlyphDefinition(defaultGlyphs.qop);
+  const compiled = compileGlyphDefinition(phoenicianGlyphs.qop);
   const fitted = fitSegmentsToTarget(compiled.segments);
   const bbox = measureSegments(fitted);
 
@@ -642,7 +665,7 @@ test("compiled glyphs fit back into the default cell", () => {
 });
 
 test("brush render mode does not change fitted geometry", () => {
-  const node = parseGlyphDefinition(defaultGlyphs.pe);
+  const node = parseGlyphDefinition(phoenicianGlyphs.pe);
   const strokeGroup = createFakeGroup();
   const brushGroup = createFakeGroup();
   const stroked = renderGlyphNode(node, strokeGroup, {

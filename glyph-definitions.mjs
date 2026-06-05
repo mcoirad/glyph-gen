@@ -1,12 +1,14 @@
 import phoenicianGlyphs from "./phoenician-glyphs.json" with { type: "json" };
 import futhorcGlyphs from "./futhorc-glyphs.json" with { type: "json" };
+import romanGlyphs from "./roman-glyphs.json" with { type: "json" };
 
 export const glyphSets = Object.freeze({
   phoenician: phoenicianGlyphs,
-  futhorc: futhorcGlyphs
+  futhorc: futhorcGlyphs,
+  roman: romanGlyphs
 });
 
-export const DEFAULT_GLYPH_SET = "futhorc";
+export const DEFAULT_GLYPH_SET = "roman";
 
 export function getGlyphDefinitions(setName = DEFAULT_GLYPH_SET) {
   const glyphs = glyphSets[setName];
@@ -22,5 +24,6 @@ export const defaultGlyphs = getGlyphDefinitions();
 
 export {
   futhorcGlyphs,
-  phoenicianGlyphs
+  phoenicianGlyphs,
+  romanGlyphs
 };

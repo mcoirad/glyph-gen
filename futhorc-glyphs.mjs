@@ -3,6 +3,7 @@ export const FUTHORC_GLYPH_KEYS = [
   "ur",
   "thorn",
   "os",
+  "os2",
   "rad",
   "cen",
   "gyfu",
@@ -26,6 +27,6 @@ export const FUTHORC_GLYPH_KEYS = [
   "ac",
   "aesc",
   "yr",
-  "ior",
-  "ear"
+  "ear",
+  "calc"
 ];

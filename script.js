@@ -7,11 +7,13 @@ import {
   futhorcGlyphs,
   getGlyphDefinitions,
   glyphSets,
-  phoenicianGlyphs
+  phoenicianGlyphs,
+  romanGlyphs
 } from "./glyph-definitions.mjs";
 import { renderGlyphNode } from "./glyph-render.mjs";
 
-const draw = SVG().addTo("#canvas").size(600, 600);
+const canvasRoot = document.querySelector("#canvas");
+const draw = SVG().addTo(canvasRoot).size(600, 600);
 const glyphSetInput = document.querySelector("#glyph-set");
 const profileInput = document.querySelector("#brush-profile");
 const segmentAngleInput = document.querySelector("#segment-angle");
@@ -33,7 +35,8 @@ const rectangleHeightValue = document.querySelector("#rectangle-height-value");
 const controlGroups = document.querySelectorAll("[data-profile-controls]");
 const glyphSetLabels = {
   phoenician: "Phoenician",
-  futhorc: "Futhorc"
+  futhorc: "Futhorc",
+  roman: "Roman"
 };
 const previewState = {
   glyphSetName: DEFAULT_GLYPH_SET,
@@ -137,13 +140,18 @@ function renderGlyphTable() {
   const cellSize = DEFAULT_SIZE;
   const spacing = 30;
   const labelHeight = 20;
+  const labelOffset = 12;
   const effectiveSize = cellSize + spacing + labelHeight;
-  const perRow = 6;
+  const topInset = 20;
+  const bottomInset = 20;
+  const trackWidth = cellSize + spacing;
+  const availableWidth = Math.max(trackWidth, Math.floor(canvasRoot.clientWidth || 600));
+  const perRow = Math.max(1, Math.floor((availableWidth + spacing) / trackWidth));
   const activeGlyphs = getGlyphDefinitions(previewState.glyphSetName);
   const entries = Object.entries(activeGlyphs);
   const rows = Math.ceil(entries.length / perRow);
-  const width = perRow * (cellSize + spacing);
-  const height = rows * effectiveSize + 20;
+  const width = perRow * trackWidth;
+  const height = rows * effectiveSize + topInset + bottomInset;
 
   draw.clear();
   draw.size(width, height);
@@ -151,8 +159,8 @@ function renderGlyphTable() {
   entries.forEach(([name, definition], index) => {
     const col = index % perRow;
     const row = Math.floor(index / perRow);
-    const gx = col * (cellSize + spacing) + cellSize / 2;
-    const gy = row * effectiveSize + cellSize / 2;
+    const gx = col * trackWidth + cellSize / 2;
+    const gy = topInset + row * effectiveSize + cellSize / 2;
     const glyph = parseGlyphDefinition(definition);
     const group = draw.group().translate(gx, gy);
 
@@ -165,7 +173,7 @@ function renderGlyphTable() {
 
     draw.text(name)
       .font({ size: 14, family: "IBM Plex Mono, monospace", anchor: "middle" })
-      .center(gx, gy + cellSize + 10);
+      .center(gx, gy + (cellSize / 2) + labelOffset);
   });
 }
 
@@ -176,6 +184,7 @@ window.GlyphGen = {
   glyphSets,
   parseGlyphDefinition,
   phoenicianGlyphs,
+  romanGlyphs,
   previewState,
   renderGlyphTable,
   setActiveGlyphSet
@@ -263,6 +272,8 @@ rectangleHeightInput.addEventListener("input", () => {
   applyActiveProfile();
   renderGlyphTable();
 });
+
+window.addEventListener("resize", renderGlyphTable);
 
 applyActiveProfile();
 syncControls();
