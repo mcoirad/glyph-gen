@@ -40,6 +40,24 @@ test("induceSetGrammar accepts a custom glyph map", () => {
   assert.deepEqual(Object.keys(grammar.setPriors.slotProfiles), ["a", "b", "c", "d"]);
 });
 
+test("induced slot profiles expose the fields required by the bounds editor", () => {
+  const { grammar } = induceSetGrammar("roman");
+  const slotKey = grammar.setPriors.slotOrder[0];
+  const profile = grammar.setPriors.slotProfiles[slotKey];
+
+  assert.equal(typeof profile.sourceDefinition, "string");
+  assert.equal(typeof profile.target.overall, "number");
+  assert.equal(typeof profile.target.scores.density, "number");
+  assert.equal(typeof profile.target.metrics.segmentCount, "number");
+  assert.equal(typeof profile.ranges.overall.min, "number");
+  assert.equal(typeof profile.ranges.overall.max, "number");
+  assert.equal(typeof profile.ranges.scores.balance.min, "number");
+  assert.equal(typeof profile.ranges.scores.balance.max, "number");
+  assert.equal(typeof profile.ranges.metrics.primitiveCount.min, "number");
+  assert.equal(typeof profile.ranges.metrics.primitiveCount.max, "number");
+  assert(Array.isArray(profile.modifierTypes));
+});
+
 test("validateSetGrammar rejects missing required structure distributions", () => {
   const { grammar } = induceSetGrammar(CUSTOM_SOURCE);
   const brokenGrammar = structuredClone(grammar);

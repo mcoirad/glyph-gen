@@ -1,16 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { DEFAULT_SET_GRAMMAR_DEFAULTS } from "../glyph-generate.mjs";
+import {
+  DEFAULT_SET_GRAMMAR_DEFAULTS,
+  validateSetGrammar
+} from "../glyph-generate.mjs";
 import {
   buildGeneratedDiagnostics,
   buildGenerationRequest,
   createGenerationSeed,
   createInitialWorkspaceState,
+  ensureGenerationSourceDraft,
+  getGenerationSourceDraft,
   markGenerationPending,
+  resetGenerationSourceDraft,
   setActiveWorkspaceTab,
+  setGenerationSourceSet,
   storeGenerationError,
-  storeGeneratedResult
+  storeGeneratedResult,
+  updateGenerationDraftGlobalSetting,
+  updateGenerationDraftRangeBound
 } from "../glyph-workspace.mjs";
 
 test("createInitialWorkspaceState seeds the generated workspace defaults", () => {
@@ -23,6 +32,7 @@ test("createInitialWorkspaceState seeds the generated workspace defaults", () =>
   assert.equal(state.activeTab, "existing");
   assert.equal(state.existing.glyphSetName, "roman");
   assert.equal(state.generation.sourceSetName, "roman");
+  assert.deepEqual(state.generation.sourceDraftsBySetName, {});
   assert.equal(state.generation.seed, "run-seed");
   assert.equal(state.generation.maxAttemptsPerGlyph, DEFAULT_SET_GRAMMAR_DEFAULTS.maxAttemptsPerGlyph);
   assert.equal(state.generation.maxSetAttempts, DEFAULT_SET_GRAMMAR_DEFAULTS.maxSetAttempts);
@@ -41,23 +51,138 @@ test("setActiveWorkspaceTab switches tabs without disturbing generation settings
 });
 
 test("buildGenerationRequest uses the selected generated-set form values", () => {
-  const state = createInitialWorkspaceState({
+  let state = createInitialWorkspaceState({
     defaultGlyphSet: "phoenician",
     generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
     initialSeed: "seed"
   });
 
+  state = ensureGenerationSourceDraft(state);
   state.generation.sourceSetName = "roman";
   state.generation.seed = "custom-seed";
   state.generation.maxAttemptsPerGlyph = 77;
   state.generation.maxSetAttempts = 5;
+  state = ensureGenerationSourceDraft(state, "roman");
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "overallScoreFloor", 0.73, "roman");
 
-  assert.deepEqual(buildGenerationRequest(state), {
-    source: "roman",
-    seed: "custom-seed",
-    maxAttemptsPerGlyph: 77,
-    maxSetAttempts: 5
+  const request = buildGenerationRequest(state);
+
+  assert.equal(request.source, "roman");
+  assert.equal(request.seed, "custom-seed");
+  assert.equal(request.maxAttemptsPerGlyph, 77);
+  assert.equal(request.maxSetAttempts, 5);
+  assert.equal(request.grammar.setPriors.acceptance.overallScoreFloor, 0.73);
+});
+
+test("ensureGenerationSourceDraft lazily initializes the selected source draft", () => {
+  const state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+  const draft = getGenerationSourceDraft(state);
+
+  assert.equal(draft.isDirty, false);
+  assert.equal(draft.baseGrammar.metadata.sourceLabel, "roman");
+  assert.deepEqual(draft.baseGrammar, draft.editedGrammar);
+});
+
+test("setGenerationSourceSet restores drafts independently per source set", () => {
+  let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "overallScoreFloor", 0.71);
+  state = setGenerationSourceSet(state, "phoenician");
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "overallScoreFloor", 0.55);
+  state = setGenerationSourceSet(state, "roman");
+
+  assert.equal(getGenerationSourceDraft(state).editedGrammar.setPriors.acceptance.overallScoreFloor, 0.71);
+  assert.equal(getGenerationSourceDraft(state, "phoenician").editedGrammar.setPriors.acceptance.overallScoreFloor, 0.55);
+});
+
+test("updateGenerationDraftGlobalSetting mutates the active draft path", () => {
+  let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+
+  state = updateGenerationDraftGlobalSetting(state, "diversity", "featureDistanceFloor", 0.19);
+
+  assert.equal(getGenerationSourceDraft(state).editedGrammar.setPriors.diversity.featureDistanceFloor, 0.19);
+  assert.equal(getGenerationSourceDraft(state).isDirty, true);
+});
+
+test("updateGenerationDraftRangeBound mutates the correct slot range field", () => {
+  let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+  const slotKey = getGenerationSourceDraft(state).editedGrammar.setPriors.slotOrder[0];
+
+  state = updateGenerationDraftRangeBound(state, {
+    slotKey,
+    rangeGroup: "scores",
+    rangeKey: "density",
+    bound: "min",
+    value: 0.31
   });
+
+  assert.equal(getGenerationSourceDraft(state).editedGrammar.setPriors.slotProfiles[slotKey].ranges.scores.density.min, 0.31);
+});
+
+test("resetGenerationSourceDraft restores the source-derived grammar", () => {
+  let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "slotFitFloor", 0.91);
+  state = resetGenerationSourceDraft(state);
+
+  const draft = getGenerationSourceDraft(state);
+  assert.equal(draft.isDirty, false);
+  assert.deepEqual(draft.baseGrammar, draft.editedGrammar);
+  assert.doesNotThrow(() => validateSetGrammar(draft.editedGrammar));
+});
+
+test("edited drafts remain valid serializable grammars", () => {
+  let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "phoenician",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+  const slotKey = getGenerationSourceDraft(state).editedGrammar.setPriors.slotOrder[0];
+
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "overallScoreFloor", 0.68);
+  state = updateGenerationDraftRangeBound(state, {
+    slotKey,
+    rangeGroup: "metrics",
+    rangeKey: "primitiveCount",
+    bound: "max",
+    value: 6
+  });
+
+  assert.doesNotThrow(() => validateSetGrammar(getGenerationSourceDraft(state).editedGrammar));
+  assert.doesNotThrow(() => JSON.parse(JSON.stringify(getGenerationSourceDraft(state).editedGrammar)));
+});
+
+test("buildGenerationRequest falls back to a derived grammar when no draft was initialized", () => {
+  const state = createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  });
+  const request = buildGenerationRequest(state);
+
+  assert.equal(request.source, "roman");
+  assert.equal(request.grammar.metadata.sourceLabel, "roman");
+  assert.doesNotThrow(() => validateSetGrammar(request.grammar));
 });
 
 test("storeGeneratedResult keeps the current generated run and clears transient errors", () => {

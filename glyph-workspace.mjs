@@ -1,3 +1,5 @@
+import { induceSetGrammar } from "./glyph-generate.mjs";
+
 function clampInteger(value, fallback, minimum = 1) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed < minimum) {
@@ -23,6 +25,7 @@ export function createInitialWorkspaceState({
     },
     generation: {
       sourceSetName: defaultGlyphSet,
+      sourceDraftsBySetName: {},
       seed: initialSeed,
       maxAttemptsPerGlyph: generationDefaults.maxAttemptsPerGlyph,
       maxSetAttempts: generationDefaults.maxSetAttempts,
@@ -34,6 +37,40 @@ export function createInitialWorkspaceState({
   };
 }
 
+function cloneValue(value) {
+  return structuredClone(value);
+}
+
+function createSourceGrammarDraft(sourceSetName) {
+  const { grammar } = induceSetGrammar(sourceSetName);
+  return {
+    baseGrammar: grammar,
+    editedGrammar: cloneValue(grammar),
+    isDirty: false
+  };
+}
+
+function computeDraftDirty(baseGrammar, editedGrammar) {
+  return JSON.stringify(baseGrammar) !== JSON.stringify(editedGrammar);
+}
+
+function resolveSourceDraft(state, sourceSetName) {
+  return state.generation.sourceDraftsBySetName[sourceSetName] || createSourceGrammarDraft(sourceSetName);
+}
+
+function storeSourceDraft(state, sourceSetName, draft) {
+  return {
+    ...state,
+    generation: {
+      ...state.generation,
+      sourceDraftsBySetName: {
+        ...state.generation.sourceDraftsBySetName,
+        [sourceSetName]: draft
+      }
+    }
+  };
+}
+
 export function setActiveWorkspaceTab(state, activeTab) {
   return {
     ...state,
@@ -41,9 +78,100 @@ export function setActiveWorkspaceTab(state, activeTab) {
   };
 }
 
+export function ensureGenerationSourceDraft(state, sourceSetName = state.generation.sourceSetName) {
+  if (state.generation.sourceDraftsBySetName[sourceSetName]) {
+    return state;
+  }
+
+  return storeSourceDraft(state, sourceSetName, createSourceGrammarDraft(sourceSetName));
+}
+
+export function setGenerationSourceSet(state, sourceSetName) {
+  const nextState = ensureGenerationSourceDraft({
+    ...state,
+    generation: {
+      ...state.generation,
+      sourceSetName
+    }
+  }, sourceSetName);
+
+  return nextState;
+}
+
+export function getGenerationSourceDraft(state, sourceSetName = state.generation.sourceSetName) {
+  return resolveSourceDraft(state, sourceSetName);
+}
+
+export function getEditedGenerationGrammar(state, sourceSetName = state.generation.sourceSetName) {
+  return cloneValue(resolveSourceDraft(state, sourceSetName).editedGrammar);
+}
+
+export function updateGenerationDraftGlobalSetting(
+  state,
+  section,
+  key,
+  value,
+  sourceSetName = state.generation.sourceSetName
+) {
+  const draft = resolveSourceDraft(state, sourceSetName);
+  const editedGrammar = cloneValue(draft.editedGrammar);
+
+  editedGrammar.setPriors[section] = {
+    ...editedGrammar.setPriors[section],
+    [key]: value
+  };
+
+  return storeSourceDraft(state, sourceSetName, {
+    ...draft,
+    editedGrammar,
+    isDirty: computeDraftDirty(draft.baseGrammar, editedGrammar)
+  });
+}
+
+export function updateGenerationDraftRangeBound(
+  state,
+  {
+    slotKey,
+    rangeGroup,
+    rangeKey,
+    bound,
+    value
+  },
+  sourceSetName = state.generation.sourceSetName
+) {
+  const draft = resolveSourceDraft(state, sourceSetName);
+  const editedGrammar = cloneValue(draft.editedGrammar);
+  const slotProfile = editedGrammar.setPriors.slotProfiles[slotKey];
+
+  if (rangeGroup === "overall") {
+    slotProfile.ranges.overall[bound] = value;
+  } else {
+    slotProfile.ranges[rangeGroup][rangeKey][bound] = value;
+  }
+
+  return storeSourceDraft(state, sourceSetName, {
+    ...draft,
+    editedGrammar,
+    isDirty: computeDraftDirty(draft.baseGrammar, editedGrammar)
+  });
+}
+
+export function resetGenerationSourceDraft(state, sourceSetName = state.generation.sourceSetName) {
+  const draft = resolveSourceDraft(state, sourceSetName);
+
+  return storeSourceDraft(state, sourceSetName, {
+    baseGrammar: draft.baseGrammar,
+    editedGrammar: cloneValue(draft.baseGrammar),
+    isDirty: false
+  });
+}
+
 export function buildGenerationRequest(state) {
+  const draft = resolveSourceDraft(state, state.generation.sourceSetName);
+
   return {
     source: state.generation.sourceSetName,
+    grammar: cloneValue(draft.editedGrammar),
     seed: state.generation.seed,
     maxAttemptsPerGlyph: clampInteger(
       state.generation.maxAttemptsPerGlyph,
@@ -109,7 +237,8 @@ export function buildGeneratedDiagnostics(state, labels = {}) {
         : "Generate a sibling alphabet from one of the built-in sets.",
       summaryItems: [
         { label: "Source", value: sourceLabel },
-        { label: "Seed", value: state.generation.seed }
+        { label: "Seed", value: state.generation.seed },
+        { label: "Overrides", value: getGenerationSourceDraft(state).isDirty ? "Edited" : "Derived" }
       ],
       warnings
     };
@@ -126,6 +255,7 @@ export function buildGeneratedDiagnostics(state, labels = {}) {
     summaryItems: [
       { label: "Source", value: sourceLabel },
       { label: "Seed", value: state.generation.lastRequest?.seed || state.generation.seed },
+      { label: "Overrides", value: getGenerationSourceDraft(state).isDirty ? "Edited" : "Derived" },
       { label: "Accepted", value: `${diagnostics.acceptedCount ?? 0}/${diagnostics.totalGlyphs ?? 0}` },
       { label: "Overall Avg", value: formatDecimal(diagnostics.overallAverage) },
       { label: "Slot Fit Avg", value: formatDecimal(diagnostics.slotFitAverage) },

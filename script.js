@@ -23,10 +23,16 @@ import {
   buildGenerationRequest,
   createGenerationSeed,
   createInitialWorkspaceState,
+  ensureGenerationSourceDraft,
+  getGenerationSourceDraft,
   markGenerationPending,
+  resetGenerationSourceDraft,
   setActiveWorkspaceTab,
+  setGenerationSourceSet,
   storeGenerationError,
-  storeGeneratedResult
+  storeGeneratedResult,
+  updateGenerationDraftGlobalSetting,
+  updateGenerationDraftRangeBound
 } from "./glyph-workspace.mjs";
 
 const existingCanvasRoot = document.querySelector("#existing-canvas");
@@ -45,6 +51,10 @@ const generatedDiagnosticsTitle = document.querySelector("#generated-diagnostics
 const generatedStatus = document.querySelector("#generated-status");
 const generatedSummary = document.querySelector("#generated-summary");
 const generatedWarnings = document.querySelector("#generated-warnings");
+const resetSourceSettingsButton = document.querySelector("#reset-source-settings");
+const sourceSettingsStatus = document.querySelector("#source-settings-status");
+const sourceSettingsGlobal = document.querySelector("#source-settings-global");
+const sourceSettingsSlots = document.querySelector("#source-settings-slots");
 const profileInput = document.querySelector("#brush-profile");
 const segmentAngleInput = document.querySelector("#segment-angle");
 const segmentAngleValue = document.querySelector("#segment-angle-value");
@@ -69,6 +79,49 @@ const glyphSetLabels = {
   futhorc: "Futhorc",
   roman: "Roman"
 };
+
+const GLOBAL_SETTING_FIELDS = Object.freeze([
+  { section: "acceptance", key: "overallScoreFloor", label: "Overall Score Floor", kind: "ratio" },
+  { section: "acceptance", key: "slotFitFloor", label: "Slot Fit Floor", kind: "ratio" },
+  { section: "diversity", key: "noveltyFloor", label: "Novelty Floor", kind: "ratio" },
+  { section: "diversity", key: "featureDistanceFloor", label: "Feature Distance Floor", kind: "ratio" },
+  { section: "diversity", key: "maxRepeatedStructureCount", label: "Max Repeated Structures", kind: "count-one" }
+]);
+
+const SLOT_RANGE_SECTIONS = Object.freeze([
+  {
+    title: "Overall",
+    rangeGroup: "overall",
+    fields: [
+      { key: "overall", label: "Overall", kind: "ratio" }
+    ]
+  },
+  {
+    title: "Score Ranges",
+    rangeGroup: "scores",
+    fields: [
+      { key: "verticalSymmetry", label: "Vertical Symmetry", kind: "ratio" },
+      { key: "horizontalSymmetry", label: "Horizontal Symmetry", kind: "ratio" },
+      { key: "connectivity", label: "Connectivity", kind: "ratio" },
+      { key: "density", label: "Density", kind: "ratio" },
+      { key: "balance", label: "Balance", kind: "ratio" },
+      { key: "complexity", label: "Complexity", kind: "ratio" }
+    ]
+  },
+  {
+    title: "Metric Ranges",
+    rangeGroup: "metrics",
+    fields: [
+      { key: "segmentCount", label: "Segment Count", kind: "count-one" },
+      { key: "componentCount", label: "Component Count", kind: "count-one" },
+      { key: "occupiedCellRatio", label: "Occupied Cell Ratio", kind: "ratio" },
+      { key: "rowCount", label: "Row Count", kind: "count-one" },
+      { key: "columnCount", label: "Column Count", kind: "count-one" },
+      { key: "overlayCount", label: "Overlay Count", kind: "count-zero" },
+      { key: "primitiveCount", label: "Primitive Count", kind: "count-one" }
+    ]
+  }
+]);
 
 let workspaceState = createInitialWorkspaceState({
   defaultGlyphSet: DEFAULT_GLYPH_SET,
@@ -107,6 +160,8 @@ const brushState = {
   }
 };
 
+const expandedSlotKeys = new Set();
+
 function cloneProfile(profile) {
   return JSON.parse(JSON.stringify(profile));
 }
@@ -122,6 +177,94 @@ function formatScoreValue(value) {
   }
 
   return Number(value).toFixed(2);
+}
+
+function formatEditorValue(value, kind = "ratio") {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "";
+  }
+
+  if (kind === "ratio") {
+    return Number(value.toFixed(3)).toString();
+  }
+
+  return String(Math.round(value));
+}
+
+function labelForSourceSet(setName) {
+  return glyphSetLabels[setName] || setName;
+}
+
+function ensureActiveSourceDraft() {
+  workspaceState = ensureGenerationSourceDraft(workspaceState);
+  return getGenerationSourceDraft(workspaceState);
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function sanitizeEditorValue(rawValue, kind) {
+  if (typeof rawValue !== "string" || rawValue.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(rawValue);
+
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  if (kind === "ratio") {
+    return Number(clamp(parsed, 0, 1).toFixed(3));
+  }
+
+  if (kind === "count-zero") {
+    return Math.max(0, Math.round(parsed));
+  }
+
+  return Math.max(1, Math.round(parsed));
+}
+
+function createLabeledNumberInput({
+  labelText,
+  value,
+  kind,
+  dataset = {}
+}) {
+  const field = document.createElement("div");
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+
+  field.className = "setting-field";
+  label.textContent = labelText;
+  input.type = "number";
+  input.step = kind === "ratio" ? "0.01" : "1";
+  input.min = kind === "count-zero" ? "0" : (kind === "ratio" ? "0" : "1");
+  if (kind === "ratio") {
+    input.max = "1";
+  }
+  input.value = formatEditorValue(value, kind);
+  Object.entries(dataset).forEach(([key, entryValue]) => {
+    input.dataset[key] = entryValue;
+  });
+
+  field.append(label, input);
+  return field;
+}
+
+function createTargetChip(labelText, value, kind = "ratio") {
+  const article = document.createElement("article");
+  const label = document.createElement("span");
+  const valueNode = document.createElement("strong");
+
+  article.className = "target-chip";
+  label.className = "target-chip__label";
+  valueNode.className = "target-chip__value";
+  label.textContent = labelText;
+  valueNode.textContent = typeof value === "number" ? formatEditorValue(value, kind) : value;
+  article.append(label, valueNode);
+  return article;
 }
 
 function applyActiveProfile() {
@@ -387,12 +530,172 @@ function renderGeneratedDiagnostics() {
   }));
 }
 
+function renderSourceSettingsEditor() {
+  const draft = ensureActiveSourceDraft();
+  const sourceSetName = workspaceState.generation.sourceSetName;
+  const grammar = draft.editedGrammar;
+  const slotOrder = grammar.setPriors.slotOrder;
+
+  resetSourceSettingsButton.disabled = !draft.isDirty;
+  sourceSettingsStatus.textContent = draft.isDirty
+    ? `Editing ${labelForSourceSet(sourceSetName)}-derived bounds. New runs will use these overrides until you reset them.`
+    : `Showing source-derived bounds for ${labelForSourceSet(sourceSetName)}. Update any threshold or slot range before generating.`;
+
+  const globalGroups = ["acceptance", "diversity"].map((section) => {
+    const group = document.createElement("section");
+    const heading = document.createElement("h4");
+    const grid = document.createElement("div");
+
+    group.className = "source-settings-group";
+    heading.textContent = section === "acceptance" ? "Acceptance" : "Diversity";
+    grid.className = "source-settings-grid";
+    GLOBAL_SETTING_FIELDS
+      .filter((field) => field.section === section)
+      .forEach((field) => {
+        grid.append(createLabeledNumberInput({
+          labelText: field.label,
+          value: grammar.setPriors[field.section][field.key],
+          kind: field.kind,
+          dataset: {
+            editorType: "global",
+            section: field.section,
+            key: field.key,
+            kind: field.kind
+          }
+        }));
+      });
+
+    group.append(heading, grid);
+    return group;
+  });
+
+  sourceSettingsGlobal.replaceChildren(...globalGroups);
+
+  const slotCards = slotOrder.map((slotKey, index) => {
+    const profile = grammar.setPriors.slotProfiles[slotKey];
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    const summaryTitle = document.createElement("strong");
+    const summaryMeta = document.createElement("span");
+    const content = document.createElement("div");
+    const metaHeading = document.createElement("h4");
+    const meta = document.createElement("div");
+    const targetsHeading = document.createElement("h4");
+    const targets = document.createElement("div");
+    const targetFields = [
+      { label: "Overall", value: profile.target.overall, kind: "ratio" },
+      { label: "Vertical Symmetry", value: profile.target.scores.verticalSymmetry, kind: "ratio" },
+      { label: "Horizontal Symmetry", value: profile.target.scores.horizontalSymmetry, kind: "ratio" },
+      { label: "Connectivity", value: profile.target.scores.connectivity, kind: "ratio" },
+      { label: "Density", value: profile.target.scores.density, kind: "ratio" },
+      { label: "Balance", value: profile.target.scores.balance, kind: "ratio" },
+      { label: "Complexity", value: profile.target.scores.complexity, kind: "ratio" },
+      { label: "Segment Count", value: profile.target.metrics.segmentCount, kind: "count-one" },
+      { label: "Component Count", value: profile.target.metrics.componentCount, kind: "count-one" },
+      { label: "Occupied Ratio", value: profile.target.metrics.occupiedCellRatio, kind: "ratio" },
+      { label: "Row Count", value: profile.target.metrics.rowCount, kind: "count-one" },
+      { label: "Column Count", value: profile.target.metrics.columnCount, kind: "count-one" },
+      { label: "Overlay Count", value: profile.target.metrics.overlayCount, kind: "count-zero" },
+      { label: "Primitive Count", value: profile.target.metrics.primitiveCount, kind: "count-one" }
+    ];
+
+    details.className = "slot-card";
+    details.dataset.slotKey = slotKey;
+    details.open = expandedSlotKeys.has(slotKey) || (expandedSlotKeys.size === 0 && index === 0);
+    details.addEventListener("toggle", () => {
+      if (details.open) {
+        expandedSlotKeys.add(slotKey);
+      } else {
+        expandedSlotKeys.delete(slotKey);
+      }
+    });
+
+    summary.className = "slot-card__summary";
+    summaryTitle.textContent = slotKey;
+    summaryMeta.textContent = `${profile.modifierTypes.join(", ") || "no modifiers"} • ${profile.structureSignature ? "profile loaded" : "profile missing"}`;
+    summary.append(summaryTitle, summaryMeta);
+
+    content.className = "slot-card__content";
+
+    metaHeading.textContent = "Source Context";
+    meta.className = "slot-card__meta";
+    meta.append(
+      createTargetChip("Source Definition", profile.sourceDefinition, "count-one"),
+      createTargetChip("Modifier Types", profile.modifierTypes.join(", ") || "none", "count-one")
+    );
+
+    targetsHeading.textContent = "Target Values";
+    targets.className = "slot-card__targets";
+    targetFields.forEach((field) => {
+      targets.append(createTargetChip(field.label, field.value, field.kind));
+    });
+
+    const ranges = document.createElement("div");
+    ranges.className = "slot-card__ranges";
+
+    SLOT_RANGE_SECTIONS.forEach((section) => {
+      const sectionNode = document.createElement("section");
+      const sectionHeading = document.createElement("h4");
+
+      sectionNode.className = "range-section";
+      sectionHeading.textContent = section.title;
+      sectionNode.append(sectionHeading);
+
+      section.fields.forEach((field) => {
+        const row = document.createElement("div");
+        const label = document.createElement("span");
+        const minInput = document.createElement("input");
+        const maxInput = document.createElement("input");
+        const range = section.rangeGroup === "overall"
+          ? profile.ranges.overall
+          : profile.ranges[section.rangeGroup][field.key];
+
+        row.className = "range-row";
+        label.className = "range-row__label";
+        label.textContent = field.label;
+
+        [minInput, maxInput].forEach((input, inputIndex) => {
+          input.type = "number";
+          input.step = field.kind === "ratio" ? "0.01" : "1";
+          input.min = field.kind === "count-zero" ? "0" : (field.kind === "ratio" ? "0" : "1");
+          if (field.kind === "ratio") {
+            input.max = "1";
+          }
+          input.placeholder = inputIndex === 0 ? "Min" : "Max";
+          input.dataset.editorType = "range";
+          input.dataset.slotKey = slotKey;
+          input.dataset.rangeGroup = section.rangeGroup;
+          input.dataset.rangeKey = field.key;
+          input.dataset.bound = inputIndex === 0 ? "min" : "max";
+          input.dataset.kind = field.kind;
+          input.setAttribute("aria-label", `${slotKey} ${field.label} ${inputIndex === 0 ? "minimum" : "maximum"}`);
+        });
+
+        minInput.value = formatEditorValue(range.min, field.kind);
+        maxInput.value = formatEditorValue(range.max, field.kind);
+        row.append(label, minInput, maxInput);
+        sectionNode.append(row);
+      });
+
+      ranges.append(sectionNode);
+    });
+
+    content.append(metaHeading, meta, targetsHeading, targets, ranges);
+    details.append(summary, content);
+    return details;
+  });
+
+  sourceSettingsSlots.replaceChildren(...slotCards);
+}
+
 function renderWorkspace() {
+  ensureActiveSourceDraft();
   syncWorkspaceControls();
   renderTabPanels();
   renderExistingGlyphTable();
   renderGeneratedGlyphTable();
   renderGeneratedDiagnostics();
+  renderSourceSettingsEditor();
 }
 
 function rerenderGlyphTables() {
@@ -407,10 +710,9 @@ function runGeneration() {
 
   window.requestAnimationFrame(() => {
     try {
-      const { grammar } = induceSetGrammar(request.source);
-      validateSetGrammar(grammar);
+      validateSetGrammar(request.grammar);
       const result = generateGlyphSet({
-        grammar,
+        grammar: request.grammar,
         seed: request.seed,
         maxAttemptsPerGlyph: request.maxAttemptsPerGlyph,
         maxSetAttempts: request.maxSetAttempts
@@ -501,15 +803,8 @@ glyphSetInput.addEventListener("input", () => {
 });
 
 generatedSourceSetInput.addEventListener("input", () => {
-  workspaceState = {
-    ...workspaceState,
-    generation: {
-      ...workspaceState.generation,
-      sourceSetName: generatedSourceSetInput.value
-    }
-  };
-  syncWorkspaceControls();
-  renderGeneratedDiagnostics();
+  workspaceState = setGenerationSourceSet(workspaceState, generatedSourceSetInput.value);
+  renderWorkspace();
 });
 
 generationSeedInput.addEventListener("input", () => {
@@ -553,6 +848,87 @@ maxSetAttemptsInput.addEventListener("input", () => {
 });
 
 generateSetButton.addEventListener("click", runGeneration);
+
+resetSourceSettingsButton.addEventListener("click", () => {
+  workspaceState = resetGenerationSourceDraft(workspaceState);
+  renderGeneratedDiagnostics();
+  renderSourceSettingsEditor();
+});
+
+function commitGlobalSettingEdit(input) {
+  const value = sanitizeEditorValue(input.value, input.dataset.kind);
+
+  if (value === null) {
+    renderSourceSettingsEditor();
+    return;
+  }
+
+  workspaceState = updateGenerationDraftGlobalSetting(
+    workspaceState,
+    input.dataset.section,
+    input.dataset.key,
+    value
+  );
+  renderGeneratedDiagnostics();
+  renderSourceSettingsEditor();
+}
+
+function commitRangeSettingEdit(input) {
+  const value = sanitizeEditorValue(input.value, input.dataset.kind);
+
+  if (value === null) {
+    renderSourceSettingsEditor();
+    return;
+  }
+
+  const draft = getGenerationSourceDraft(workspaceState);
+  const profile = draft.editedGrammar.setPriors.slotProfiles[input.dataset.slotKey];
+  const range = input.dataset.rangeGroup === "overall"
+    ? profile.ranges.overall
+    : profile.ranges[input.dataset.rangeGroup][input.dataset.rangeKey];
+  const pairedBound = input.dataset.bound === "min" ? "max" : "min";
+
+  workspaceState = updateGenerationDraftRangeBound(workspaceState, {
+    slotKey: input.dataset.slotKey,
+    rangeGroup: input.dataset.rangeGroup,
+    rangeKey: input.dataset.rangeKey,
+    bound: input.dataset.bound,
+    value
+  });
+
+  if ((input.dataset.bound === "min" && value > range.max) || (input.dataset.bound === "max" && value < range.min)) {
+    workspaceState = updateGenerationDraftRangeBound(workspaceState, {
+      slotKey: input.dataset.slotKey,
+      rangeGroup: input.dataset.rangeGroup,
+      rangeKey: input.dataset.rangeKey,
+      bound: pairedBound,
+      value
+    });
+  }
+
+  renderGeneratedDiagnostics();
+  renderSourceSettingsEditor();
+}
+
+function handleSourceSettingsChange(event) {
+  const input = event.target;
+
+  if (!(input instanceof HTMLInputElement)) {
+    return;
+  }
+
+  if (input.dataset.editorType === "global") {
+    commitGlobalSettingEdit(input);
+    return;
+  }
+
+  if (input.dataset.editorType === "range") {
+    commitRangeSettingEdit(input);
+  }
+}
+
+sourceSettingsGlobal.addEventListener("change", handleSourceSettingsChange);
+sourceSettingsSlots.addEventListener("change", handleSourceSettingsChange);
 
 profileInput.addEventListener("input", () => {
   brushState.brush.profile.kind = profileInput.value;
