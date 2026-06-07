@@ -32,6 +32,7 @@ test("induceSetGrammar returns a serializable grammar with structure and slot pr
   assert.equal(typeof grammar.setPriors.acceptance.horizontalSymmetryCoverageFloor, "number");
   assert.equal(typeof grammar.setPriors.acceptance.complexityFloor, "number");
   assert.equal(typeof grammar.setPriors.acceptance.complexityCeiling, "number");
+  assert.equal(typeof grammar.setPriors.diversity.minRepeatedGlyphCount, "number");
   assert.equal(typeof diagnostics.uniqueStructureCount, "number");
 
   assert.doesNotThrow(() => JSON.parse(JSON.stringify(grammar)));
@@ -107,6 +108,7 @@ test("generateGlyphSet fills optional priors from defaults when they are omitted
   const result = generateGlyphSet({ grammar: callerGrammar, seed: "defaults" });
 
   assert.equal(typeof result.setDiagnostics.overallAverage, "number");
+  assert.equal(typeof result.setDiagnostics.repeatedGlyphCount, "number");
   assert.deepEqual(Object.keys(result.definitions), grammar.setPriors.slotOrder);
 });
 
@@ -144,6 +146,19 @@ test("generateGlyphSet normalizes new acceptance floors from defaults", () => {
 
   assert.equal(typeof result.setDiagnostics.slotFitAverage, "number");
   assert.deepEqual(Object.keys(result.definitions), grammar.setPriors.slotOrder);
+});
+
+test("generateGlyphSet normalizes minRepeatedGlyphCount from defaults", () => {
+  const { grammar } = induceSetGrammar(CUSTOM_SOURCE);
+  const callerGrammar = structuredClone(grammar);
+
+  delete callerGrammar.defaults;
+  delete callerGrammar.setPriors.diversity;
+
+  const result = generateGlyphSet({ grammar: callerGrammar, seed: "diversity-defaults" });
+
+  assert.equal(typeof result.setDiagnostics.repeatedGlyphCount, "number");
+  assert.equal(typeof result.setDiagnostics.meetsMinRepeatedGlyphCount, "boolean");
 });
 
 test("generateGlyphSet rejects candidates below the connectivity floor", () => {
@@ -184,6 +199,61 @@ test("generateGlyphSet rejects candidates above the complexity ceiling", () => {
   });
 
   assert.equal(rejectionCounts["complexity-ceiling"], 1);
+});
+
+test("generateGlyphSet warns when the best set misses minRepeatedGlyphCount", () => {
+  const { grammar } = induceSetGrammar({
+    solo: "R"
+  });
+
+  grammar.setPriors.diversity = {
+    ...grammar.setPriors.diversity,
+    minRepeatedGlyphCount: 1
+  };
+
+  const result = generateGlyphSet({
+    grammar,
+    seed: "repetition-warning",
+    maxAttemptsPerGlyph: 4,
+    maxSetAttempts: 1
+  });
+
+  assert.equal(result.setDiagnostics.repeatedGlyphCount, 0);
+  assert.equal(result.setDiagnostics.meetsMinRepeatedGlyphCount, false);
+  assert(result.setDiagnostics.warnings.includes("below-min-repeated-glyph-count"));
+});
+
+test("generateGlyphSet prefers a set that satisfies minRepeatedGlyphCount over one that does not", () => {
+  const { grammar } = induceSetGrammar({
+    a: "R",
+    b: "T",
+    c: "C",
+    d: "S17"
+  });
+
+  grammar.setPriors.diversity = {
+    ...grammar.setPriors.diversity,
+    maxRepeatedStructureCount: 10,
+    minRepeatedGlyphCount: 3
+  };
+
+  const singleAttempt = generateGlyphSet({
+    grammar,
+    seed: "repeat-2",
+    maxAttemptsPerGlyph: 20,
+    maxSetAttempts: 1
+  });
+  const multiAttempt = generateGlyphSet({
+    grammar,
+    seed: "repeat-2",
+    maxAttemptsPerGlyph: 20,
+    maxSetAttempts: 2
+  });
+
+  assert.equal(singleAttempt.setDiagnostics.meetsMinRepeatedGlyphCount, false);
+  assert.equal(singleAttempt.setDiagnostics.repeatedGlyphCount, 2);
+  assert.equal(multiAttempt.setDiagnostics.meetsMinRepeatedGlyphCount, true);
+  assert.equal(multiAttempt.setDiagnostics.repeatedGlyphCount, 3);
 });
 
 test("a grammar induced from a built-in set can generate without source access", () => {

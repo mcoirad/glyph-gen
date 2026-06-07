@@ -78,6 +78,7 @@ test("buildGenerationRequest uses the selected generated-set form values", () =>
   state.generation.maxSetAttempts = 5;
   state = ensureGenerationSourceDraft(state, "roman");
   state = updateGenerationDraftGlobalSetting(state, "acceptance", "overallScoreFloor", 0.73, "roman");
+  state = updateGenerationDraftGlobalSetting(state, "diversity", "minRepeatedGlyphCount", 4, "roman");
 
   const request = buildGenerationRequest(state);
 
@@ -86,6 +87,7 @@ test("buildGenerationRequest uses the selected generated-set form values", () =>
   assert.equal(request.maxAttemptsPerGlyph, 77);
   assert.equal(request.maxSetAttempts, 5);
   assert.equal(request.grammar.setPriors.acceptance.overallScoreFloor, 0.73);
+  assert.equal(request.grammar.setPriors.diversity.minRepeatedGlyphCount, 4);
 });
 
 test("ensureGenerationSourceDraft lazily initializes the selected source draft", () => {
@@ -128,6 +130,18 @@ test("updateGenerationDraftGlobalSetting mutates the active draft path", () => {
 
   assert.equal(getGenerationSourceDraft(state).editedGrammar.setPriors.diversity.featureDistanceFloor, 0.19);
   assert.equal(getGenerationSourceDraft(state).isDirty, true);
+});
+
+test("updateGenerationDraftGlobalSetting can store the new minRepeatedGlyphCount diversity field", () => {
+  let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+
+  state = updateGenerationDraftGlobalSetting(state, "diversity", "minRepeatedGlyphCount", 3);
+
+  assert.equal(getGenerationSourceDraft(state).editedGrammar.setPriors.diversity.minRepeatedGlyphCount, 3);
 });
 
 test("updateGenerationDraftGlobalSetting can store the new acceptance floor fields", () => {

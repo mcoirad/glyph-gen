@@ -22,6 +22,7 @@ export const DEFAULT_SET_GRAMMAR_DEFAULTS = Object.freeze({
   complexityCeiling: 1,
   noveltyFloor: 0.04,
   featureDistanceFloor: 0.05,
+  minRepeatedGlyphCount: 0,
   scorePadding: 0.22,
   densityPadding: 0.08,
   occupiedCellRatioPadding: 0.08,
@@ -699,7 +700,8 @@ export function induceSetGrammar(source, options = {}) {
       diversity: {
         noveltyFloor: defaults.noveltyFloor,
         featureDistanceFloor: defaults.featureDistanceFloor,
-        maxRepeatedStructureCount: defaults.maxRepeatedStructureCount
+        maxRepeatedStructureCount: defaults.maxRepeatedStructureCount,
+        minRepeatedGlyphCount: defaults.minRepeatedGlyphCount
       },
       acceptance: {
         overallScoreFloor: defaults.overallScoreFloor,
@@ -799,6 +801,7 @@ function normalizeGrammar(grammar) {
     noveltyFloor: defaults.noveltyFloor,
     featureDistanceFloor: defaults.featureDistanceFloor,
     maxRepeatedStructureCount: defaults.maxRepeatedStructureCount,
+    minRepeatedGlyphCount: defaults.minRepeatedGlyphCount,
     ...(normalized.setPriors.diversity || {})
   };
   normalized.setPriors.acceptance = {
@@ -1112,6 +1115,28 @@ function compareCandidates(left, right) {
   return leftScore - rightScore;
 }
 
+function countRepeatedGlyphs(acceptedStructureCounts) {
+  return [...acceptedStructureCounts.values()]
+    .filter((count) => count > 1)
+    .reduce((sum, count) => sum + count, 0);
+}
+
+function compareSets(left, right) {
+  if (left.setDiagnostics.meetsMinRepeatedGlyphCount !== right.setDiagnostics.meetsMinRepeatedGlyphCount) {
+    return left.setDiagnostics.meetsMinRepeatedGlyphCount ? 1 : -1;
+  }
+
+  if (left.setDiagnostics.acceptedCount !== right.setDiagnostics.acceptedCount) {
+    return left.setDiagnostics.acceptedCount - right.setDiagnostics.acceptedCount;
+  }
+
+  if (left.setDiagnostics.slotFitAverage !== right.setDiagnostics.slotFitAverage) {
+    return left.setDiagnostics.slotFitAverage - right.setDiagnostics.slotFitAverage;
+  }
+
+  return left.setDiagnostics.overallAverage - right.setDiagnostics.overallAverage;
+}
+
 export function generateGlyphSet({
   grammar,
   seed,
@@ -1256,6 +1281,17 @@ export function generateGlyphSet({
     const minNovelty = Math.min(...values.map((glyph) => glyph.novelty));
     const overallAverage = values.reduce((sum, glyph) => sum + glyph.overall, 0) / values.length;
     const slotFitAverage = values.reduce((sum, glyph) => sum + glyph.slotFit, 0) / values.length;
+    const repeatedGlyphCount = countRepeatedGlyphs(acceptedStructureCounts);
+    const meetsMinRepeatedGlyphCount = repeatedGlyphCount >= normalizedGrammar.setPriors.diversity.minRepeatedGlyphCount;
+    const warnings = [];
+
+    if (acceptedCount !== values.length) {
+      warnings.push("returned-best-effort-set");
+    }
+    if (!meetsMinRepeatedGlyphCount) {
+      warnings.push("below-min-repeated-glyph-count");
+    }
+
     const setDiagnostics = {
       seed: `${seed}:${setAttempt}`,
       acceptedCount,
@@ -1263,8 +1299,10 @@ export function generateGlyphSet({
       minNovelty,
       overallAverage,
       slotFitAverage,
+      repeatedGlyphCount,
+      meetsMinRepeatedGlyphCount,
       repeatedStructures: Object.fromEntries(acceptedStructureCounts.entries()),
-      warnings: acceptedCount === values.length ? [] : ["returned-best-effort-set"]
+      warnings
     };
     const currentSet = {
       definitions,
@@ -1277,18 +1315,11 @@ export function generateGlyphSet({
       }
     };
 
-    if (
-      !bestSet
-      || currentSet.setDiagnostics.acceptedCount > bestSet.setDiagnostics.acceptedCount
-      || (
-        currentSet.setDiagnostics.acceptedCount === bestSet.setDiagnostics.acceptedCount
-        && currentSet.setDiagnostics.slotFitAverage > bestSet.setDiagnostics.slotFitAverage
-      )
-    ) {
+    if (!bestSet || compareSets(currentSet, bestSet) > 0) {
       bestSet = currentSet;
     }
 
-    if (acceptedCount === values.length) {
+    if (acceptedCount === values.length && meetsMinRepeatedGlyphCount) {
       return bestSet;
     }
   }

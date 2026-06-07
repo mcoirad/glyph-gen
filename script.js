@@ -92,6 +92,7 @@ const GLOBAL_SETTING_FIELDS = Object.freeze([
   { section: "acceptance", key: "complexityCeiling", label: "Complexity Ceiling (0-1)", kind: "ratio" },
   { section: "diversity", key: "noveltyFloor", label: "Novelty Floor", kind: "ratio" },
   { section: "diversity", key: "featureDistanceFloor", label: "Feature Distance Floor", kind: "ratio" },
+  { section: "diversity", key: "minRepeatedGlyphCount", label: "Min Repeated Glyphs", kind: "count-zero" },
   { section: "diversity", key: "maxRepeatedStructureCount", label: "Max Repeated Structures", kind: "count-one" }
 ]);
 

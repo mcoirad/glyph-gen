@@ -280,6 +280,7 @@ export function buildGeneratedDiagnostics(state, labels = {}) {
       { label: "Seed", value: state.generation.lastRequest?.seed || state.generation.seed },
       { label: "Overrides", value: getGenerationSourceDraft(state).isDirty ? "Edited" : "Derived" },
       { label: "Accepted", value: `${diagnostics.acceptedCount ?? 0}/${diagnostics.totalGlyphs ?? 0}` },
+      { label: "Repeated Glyphs", value: `${diagnostics.repeatedGlyphCount ?? 0}` },
       { label: "Overall Avg", value: formatDecimal(diagnostics.overallAverage) },
       { label: "Slot Fit Avg", value: formatDecimal(diagnostics.slotFitAverage) },
       { label: "Min Novelty", value: formatDecimal(diagnostics.minNovelty) }
