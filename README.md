@@ -6,6 +6,7 @@ This repo is now set up as a plain static site:
 - `styles.css` holds the page styles
 - `script.js` is the browser entrypoint that renders the demo table
 - `glyph-core.mjs` holds the glyph grammar, parser, geometry, and layout pipeline
+- `glyph-generate.mjs` learns serializable set grammars and generates synthetic glyph sets from them
 - `glyph-render.mjs` holds the SVG rendering and brush/stroke output logic
 - `glyph-definitions.mjs` loads named glyph fixture sets from JSON files such as `phoenician-glyphs.json`, `futhorc-glyphs.json`, and `roman-glyphs.json`
 - `index-jsfiddle-yrkmvpas-11.html` is the original JSFiddle export kept for reference
@@ -132,8 +133,25 @@ The current pipeline is split across `glyph-core.mjs` and `glyph-render.mjs`:
 There is a small Node test suite for parser and geometry behavior:
 
 ```bash
-node --test tests/glyph-core.test.mjs
+node --test tests/glyph-core.test.mjs tests/glyph-score.test.mjs tests/glyph-generate.test.mjs
 ```
+
+## Set Grammar Generation
+
+The library now supports a grammar-first generation flow:
+
+```js
+import { induceSetGrammar, generateGlyphSet } from "./glyph-generate.mjs";
+
+const { grammar } = induceSetGrammar("phoenician");
+const generated = generateGlyphSet({
+  grammar,
+  seed: "demo"
+});
+```
+
+- `induceSetGrammar(source, options?)` accepts a built-in set name or a custom glyph map and returns a serializable probabilistic set grammar plus induction diagnostics
+- `generateGlyphSet({ grammar, seed, ... })` samples a full sibling alphabet from that grammar and returns generated definitions with per-slot diagnostics
 
 ## GitHub Pages
 

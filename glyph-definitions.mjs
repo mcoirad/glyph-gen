@@ -8,7 +8,7 @@ export const glyphSets = Object.freeze({
   roman: romanGlyphs
 });
 
-export const DEFAULT_GLYPH_SET = "roman";
+export const DEFAULT_GLYPH_SET = "futhorc";
 
 export function getGlyphDefinitions(setName = DEFAULT_GLYPH_SET) {
   const glyphs = glyphSets[setName];

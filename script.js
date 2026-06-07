@@ -10,6 +10,11 @@ import {
   phoenicianGlyphs,
   romanGlyphs
 } from "./glyph-definitions.mjs";
+import {
+  generateGlyphSet,
+  induceSetGrammar,
+  validateSetGrammar
+} from "./glyph-generate.mjs";
 import { renderGlyphNode } from "./glyph-render.mjs";
 import { scoreGlyph } from "./glyph-score.mjs";
 
@@ -219,12 +224,15 @@ window.GlyphGen = {
   futhorcGlyphs,
   getGlyphDefinitions,
   glyphSets,
+  induceSetGrammar,
   parseGlyphDefinition,
   phoenicianGlyphs,
   romanGlyphs,
   previewState,
   renderGlyphTable,
-  setActiveGlyphSet
+  setActiveGlyphSet,
+  validateSetGrammar,
+  generateGlyphSet
 };
 
 Object.defineProperties(window.GlyphGen, {
