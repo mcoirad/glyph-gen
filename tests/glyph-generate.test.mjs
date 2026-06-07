@@ -27,6 +27,11 @@ test("induceSetGrammar returns a serializable grammar with structure and slot pr
   assert.equal(typeof grammar.structureModel.nodeFamilies.root[0].probability, "number");
   assert.equal(typeof grammar.attributeModel.primitiveKinds.any[0].probability, "number");
   assert.equal(typeof grammar.defaults.backoffWeight, "number");
+  assert.equal(typeof grammar.setPriors.acceptance.connectivityFloor, "number");
+  assert.equal(typeof grammar.setPriors.acceptance.verticalSymmetryCoverageFloor, "number");
+  assert.equal(typeof grammar.setPriors.acceptance.horizontalSymmetryCoverageFloor, "number");
+  assert.equal(typeof grammar.setPriors.acceptance.complexityFloor, "number");
+  assert.equal(typeof grammar.setPriors.acceptance.complexityCeiling, "number");
   assert.equal(typeof diagnostics.uniqueStructureCount, "number");
 
   assert.doesNotThrow(() => JSON.parse(JSON.stringify(grammar)));
@@ -103,6 +108,82 @@ test("generateGlyphSet fills optional priors from defaults when they are omitted
 
   assert.equal(typeof result.setDiagnostics.overallAverage, "number");
   assert.deepEqual(Object.keys(result.definitions), grammar.setPriors.slotOrder);
+});
+
+function bestEffortRejectionReasons(acceptance) {
+  const { grammar } = induceSetGrammar({
+    solo: "R"
+  });
+
+  grammar.setPriors.acceptance = {
+    ...grammar.setPriors.acceptance,
+    overallScoreFloor: 0,
+    slotFitFloor: 0,
+    noveltyFloor: 0,
+    ...acceptance
+  };
+
+  const result = generateGlyphSet({
+    grammar,
+    seed: "forced-rejection",
+    maxAttemptsPerGlyph: 1,
+    maxSetAttempts: 1
+  });
+
+  return result.glyphs.solo.rejectionCounts;
+}
+
+test("generateGlyphSet normalizes new acceptance floors from defaults", () => {
+  const { grammar } = induceSetGrammar(CUSTOM_SOURCE);
+  const callerGrammar = structuredClone(grammar);
+
+  delete callerGrammar.defaults;
+  delete callerGrammar.setPriors.acceptance;
+
+  const result = generateGlyphSet({ grammar: callerGrammar, seed: "acceptance-defaults" });
+
+  assert.equal(typeof result.setDiagnostics.slotFitAverage, "number");
+  assert.deepEqual(Object.keys(result.definitions), grammar.setPriors.slotOrder);
+});
+
+test("generateGlyphSet rejects candidates below the connectivity floor", () => {
+  const rejectionCounts = bestEffortRejectionReasons({
+    connectivityFloor: 1.1
+  });
+
+  assert.equal(rejectionCounts.connectivity, 1);
+});
+
+test("generateGlyphSet rejects candidates below the vertical symmetry coverage floor", () => {
+  const rejectionCounts = bestEffortRejectionReasons({
+    verticalSymmetryCoverageFloor: 1.1
+  });
+
+  assert.equal(rejectionCounts["vertical-symmetry-coverage"], 1);
+});
+
+test("generateGlyphSet rejects candidates below the horizontal symmetry coverage floor", () => {
+  const rejectionCounts = bestEffortRejectionReasons({
+    horizontalSymmetryCoverageFloor: 1.1
+  });
+
+  assert.equal(rejectionCounts["horizontal-symmetry-coverage"], 1);
+});
+
+test("generateGlyphSet rejects candidates below the complexity floor", () => {
+  const rejectionCounts = bestEffortRejectionReasons({
+    complexityFloor: 1.1
+  });
+
+  assert.equal(rejectionCounts["complexity-floor"], 1);
+});
+
+test("generateGlyphSet rejects candidates above the complexity ceiling", () => {
+  const rejectionCounts = bestEffortRejectionReasons({
+    complexityCeiling: -0.1
+  });
+
+  assert.equal(rejectionCounts["complexity-ceiling"], 1);
 });
 
 test("a grammar induced from a built-in set can generate without source access", () => {

@@ -28,6 +28,7 @@ import {
   markGenerationPending,
   resetGenerationSourceDraft,
   setActiveWorkspaceTab,
+  setGenerationSlotSettingsVisibility,
   setGenerationSourceSet,
   storeGenerationError,
   storeGeneratedResult,
@@ -53,6 +54,7 @@ const generatedSummary = document.querySelector("#generated-summary");
 const generatedWarnings = document.querySelector("#generated-warnings");
 const resetSourceSettingsButton = document.querySelector("#reset-source-settings");
 const sourceSettingsStatus = document.querySelector("#source-settings-status");
+const showSlotSettingsInput = document.querySelector("#show-slot-settings");
 const sourceSettingsGlobal = document.querySelector("#source-settings-global");
 const sourceSettingsSlots = document.querySelector("#source-settings-slots");
 const profileInput = document.querySelector("#brush-profile");
@@ -83,6 +85,11 @@ const glyphSetLabels = {
 const GLOBAL_SETTING_FIELDS = Object.freeze([
   { section: "acceptance", key: "overallScoreFloor", label: "Overall Score Floor", kind: "ratio" },
   { section: "acceptance", key: "slotFitFloor", label: "Slot Fit Floor", kind: "ratio" },
+  { section: "acceptance", key: "connectivityFloor", label: "Connectivity Floor", kind: "ratio" },
+  { section: "acceptance", key: "verticalSymmetryCoverageFloor", label: "Vertical Symmetry Coverage Floor", kind: "ratio" },
+  { section: "acceptance", key: "horizontalSymmetryCoverageFloor", label: "Horizontal Symmetry Coverage Floor", kind: "ratio" },
+  { section: "acceptance", key: "complexityFloor", label: "Complexity Floor (0-1)", kind: "ratio" },
+  { section: "acceptance", key: "complexityCeiling", label: "Complexity Ceiling (0-1)", kind: "ratio" },
   { section: "diversity", key: "noveltyFloor", label: "Novelty Floor", kind: "ratio" },
   { section: "diversity", key: "featureDistanceFloor", label: "Feature Distance Floor", kind: "ratio" },
   { section: "diversity", key: "maxRepeatedStructureCount", label: "Max Repeated Structures", kind: "count-one" }
@@ -535,11 +542,13 @@ function renderSourceSettingsEditor() {
   const sourceSetName = workspaceState.generation.sourceSetName;
   const grammar = draft.editedGrammar;
   const slotOrder = grammar.setPriors.slotOrder;
+  const showSlotSettings = workspaceState.generation.showSlotSettings;
 
   resetSourceSettingsButton.disabled = !draft.isDirty;
+  showSlotSettingsInput.checked = showSlotSettings;
   sourceSettingsStatus.textContent = draft.isDirty
-    ? `Editing ${labelForSourceSet(sourceSetName)}-derived bounds. New runs will use these overrides until you reset them.`
-    : `Showing source-derived bounds for ${labelForSourceSet(sourceSetName)}. Update any threshold or slot range before generating.`;
+    ? `Editing ${labelForSourceSet(sourceSetName)}-derived generation thresholds. New runs will use these overrides until you reset them.`
+    : `Showing source-derived generation thresholds for ${labelForSourceSet(sourceSetName)}. Global acceptance floors control the full run.`;
 
   const globalGroups = ["acceptance", "diversity"].map((section) => {
     const group = document.createElement("section");
@@ -586,10 +595,12 @@ function renderSourceSettingsEditor() {
       { label: "Overall", value: profile.target.overall, kind: "ratio" },
       { label: "Vertical Symmetry", value: profile.target.scores.verticalSymmetry, kind: "ratio" },
       { label: "Horizontal Symmetry", value: profile.target.scores.horizontalSymmetry, kind: "ratio" },
+      { label: "Vertical Coverage", value: profile.target.scores.verticalSymmetryCoverage, kind: "ratio" },
+      { label: "Horizontal Coverage", value: profile.target.scores.horizontalSymmetryCoverage, kind: "ratio" },
       { label: "Connectivity", value: profile.target.scores.connectivity, kind: "ratio" },
       { label: "Density", value: profile.target.scores.density, kind: "ratio" },
       { label: "Balance", value: profile.target.scores.balance, kind: "ratio" },
-      { label: "Complexity", value: profile.target.scores.complexity, kind: "ratio" },
+      { label: "Complexity (0-1)", value: profile.target.scores.complexity, kind: "ratio" },
       { label: "Segment Count", value: profile.target.metrics.segmentCount, kind: "count-one" },
       { label: "Component Count", value: profile.target.metrics.componentCount, kind: "count-one" },
       { label: "Occupied Ratio", value: profile.target.metrics.occupiedCellRatio, kind: "ratio" },
@@ -685,7 +696,8 @@ function renderSourceSettingsEditor() {
     return details;
   });
 
-  sourceSettingsSlots.replaceChildren(...slotCards);
+  sourceSettingsSlots.hidden = !showSlotSettings;
+  sourceSettingsSlots.replaceChildren(...(showSlotSettings ? slotCards : []));
 }
 
 function renderWorkspace() {
@@ -855,6 +867,11 @@ resetSourceSettingsButton.addEventListener("click", () => {
   renderSourceSettingsEditor();
 });
 
+showSlotSettingsInput.addEventListener("input", () => {
+  workspaceState = setGenerationSlotSettingsVisibility(workspaceState, showSlotSettingsInput.checked);
+  renderSourceSettingsEditor();
+});
+
 function commitGlobalSettingEdit(input) {
   const value = sanitizeEditorValue(input.value, input.dataset.kind);
 
@@ -869,6 +886,7 @@ function commitGlobalSettingEdit(input) {
     input.dataset.key,
     value
   );
+
   renderGeneratedDiagnostics();
   renderSourceSettingsEditor();
 }

@@ -332,6 +332,18 @@ body {
   color: var(--muted);
 }
 
+.source-settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.source-settings-toggle input {
+  accent-color: var(--accent);
+}
+
 .ghost-button {
   border: 1px solid rgba(24, 33, 43, 0.12);
   border-radius: 12px;

@@ -26,6 +26,7 @@ export function createInitialWorkspaceState({
     generation: {
       sourceSetName: defaultGlyphSet,
       sourceDraftsBySetName: {},
+      showSlotSettings: false,
       seed: initialSeed,
       maxAttemptsPerGlyph: generationDefaults.maxAttemptsPerGlyph,
       maxSetAttempts: generationDefaults.maxSetAttempts,
@@ -98,6 +99,16 @@ export function setGenerationSourceSet(state, sourceSetName) {
   return nextState;
 }
 
+export function setGenerationSlotSettingsVisibility(state, showSlotSettings) {
+  return {
+    ...state,
+    generation: {
+      ...state.generation,
+      showSlotSettings
+    }
+  };
+}
+
 export function getGenerationSourceDraft(state, sourceSetName = state.generation.sourceSetName) {
   return resolveSourceDraft(state, sourceSetName);
 }
@@ -120,6 +131,18 @@ export function updateGenerationDraftGlobalSetting(
     ...editedGrammar.setPriors[section],
     [key]: value
   };
+
+  if (section === "acceptance") {
+    const acceptance = editedGrammar.setPriors.acceptance;
+
+    if (key === "complexityFloor" && acceptance.complexityFloor > acceptance.complexityCeiling) {
+      acceptance.complexityCeiling = acceptance.complexityFloor;
+    }
+
+    if (key === "complexityCeiling" && acceptance.complexityFloor > acceptance.complexityCeiling) {
+      acceptance.complexityFloor = acceptance.complexityCeiling;
+    }
+  }
 
   return storeSourceDraft(state, sourceSetName, {
     ...draft,

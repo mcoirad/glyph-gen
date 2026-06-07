@@ -67,6 +67,14 @@ function triangularScore(value, min, peak, max) {
   return clamp((max - value) / (max - peak));
 }
 
+function normalizedComplexity(segmentCount, minimumSegments = 1, saturatedSegments = 16) {
+  if (segmentCount <= minimumSegments) {
+    return 0;
+  }
+
+  return clamp((segmentCount - minimumSegments) / Math.max(1, saturatedSegments - minimumSegments));
+}
+
 function resolveScoreOptions(options = {}) {
   return {
     normalize: options.normalize ?? true,
@@ -456,7 +464,7 @@ function analyzeSegments(segments, rawOptions = {}) {
   const occupiedCellRatio = occupied.size / (options.gridSize * options.gridSize);
   const density = triangularScore(occupiedCellRatio, 0.05, 0.18, 0.4);
   const balance = clamp(1 - centroidOffset.normalizedDistance);
-  const complexity = triangularScore(processedSegments.length, 1, 8, 16);
+  const complexity = normalizedComplexity(processedSegments.length);
   const scores = {
     verticalSymmetry,
     horizontalSymmetry,

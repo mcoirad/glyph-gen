@@ -15,6 +15,11 @@ export const DEFAULT_SET_GRAMMAR_DEFAULTS = Object.freeze({
   maxSetAttempts: 10,
   overallScoreFloor: 0.42,
   slotFitFloor: 0.62,
+  connectivityFloor: 0,
+  verticalSymmetryCoverageFloor: 0,
+  horizontalSymmetryCoverageFloor: 0,
+  complexityFloor: 0,
+  complexityCeiling: 1,
   noveltyFloor: 0.04,
   featureDistanceFloor: 0.05,
   scorePadding: 0.22,
@@ -698,7 +703,12 @@ export function induceSetGrammar(source, options = {}) {
       },
       acceptance: {
         overallScoreFloor: defaults.overallScoreFloor,
-        slotFitFloor: defaults.slotFitFloor
+        slotFitFloor: defaults.slotFitFloor,
+        connectivityFloor: defaults.connectivityFloor,
+        verticalSymmetryCoverageFloor: defaults.verticalSymmetryCoverageFloor,
+        horizontalSymmetryCoverageFloor: defaults.horizontalSymmetryCoverageFloor,
+        complexityFloor: defaults.complexityFloor,
+        complexityCeiling: defaults.complexityCeiling
       }
     },
     structureModel,
@@ -794,6 +804,11 @@ function normalizeGrammar(grammar) {
   normalized.setPriors.acceptance = {
     overallScoreFloor: defaults.overallScoreFloor,
     slotFitFloor: defaults.slotFitFloor,
+    connectivityFloor: defaults.connectivityFloor,
+    verticalSymmetryCoverageFloor: defaults.verticalSymmetryCoverageFloor,
+    horizontalSymmetryCoverageFloor: defaults.horizontalSymmetryCoverageFloor,
+    complexityFloor: defaults.complexityFloor,
+    complexityCeiling: defaults.complexityCeiling,
     ...(normalized.setPriors.acceptance || {})
   };
   normalized.structureModel.backoff = {
@@ -1046,6 +1061,21 @@ function evaluateCandidate({
   }
   if (slotFit.value < grammar.setPriors.acceptance.slotFitFloor) {
     rejectionReasons.push("slot-fit");
+  }
+  if (analysis.scores.connectivity < grammar.setPriors.acceptance.connectivityFloor) {
+    rejectionReasons.push("connectivity");
+  }
+  if (analysis.scores.verticalSymmetryCoverage < grammar.setPriors.acceptance.verticalSymmetryCoverageFloor) {
+    rejectionReasons.push("vertical-symmetry-coverage");
+  }
+  if (analysis.scores.horizontalSymmetryCoverage < grammar.setPriors.acceptance.horizontalSymmetryCoverageFloor) {
+    rejectionReasons.push("horizontal-symmetry-coverage");
+  }
+  if (analysis.scores.complexity < grammar.setPriors.acceptance.complexityFloor) {
+    rejectionReasons.push("complexity-floor");
+  }
+  if (analysis.scores.complexity > grammar.setPriors.acceptance.complexityCeiling) {
+    rejectionReasons.push("complexity-ceiling");
   }
   if (acceptedDefinitions.includes(definition)) {
     rejectionReasons.push("duplicate-definition");

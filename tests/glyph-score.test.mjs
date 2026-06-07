@@ -128,13 +128,24 @@ test("balance scores drop for off-center glyphs when normalization is disabled",
   assert(centered.metrics.centroidOffset.distance < offset.metrics.centroidOffset.distance);
 });
 
-test("complexity scores prefer mid-complexity glyphs over very simple or very busy ones", () => {
+test("complexity scores increase with glyph complexity and stay normalized", () => {
   const simple = scoreGlyph("S17");
   const medium = scoreGlyph("R10 * T4r270 | R10 | R10");
   const busy = scoreGlyph("R R R|R R R|R R R");
 
+  assert(simple.scores.complexity >= 0 && simple.scores.complexity <= 1);
+  assert(medium.scores.complexity >= 0 && medium.scores.complexity <= 1);
+  assert(busy.scores.complexity >= 0 && busy.scores.complexity <= 1);
   assert(medium.scores.complexity > simple.scores.complexity);
-  assert(medium.scores.complexity > busy.scores.complexity);
+  assert(busy.scores.complexity > medium.scores.complexity);
+});
+
+test("complexity keeps simple glyphs near the bottom and saturates for very busy glyphs", () => {
+  const minimal = scoreGlyph("S17");
+  const saturated = scoreGlyph("R R R R|R R R R|R R R R|R R R R");
+
+  assert(minimal.scores.complexity < 0.1);
+  assert.equal(saturated.scores.complexity, 1);
 });
 
 test("novelty uses reference glyphs and treats identical references as non-novel", () => {

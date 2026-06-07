@@ -15,6 +15,7 @@ import {
   markGenerationPending,
   resetGenerationSourceDraft,
   setActiveWorkspaceTab,
+  setGenerationSlotSettingsVisibility,
   setGenerationSourceSet,
   storeGenerationError,
   storeGeneratedResult,
@@ -33,6 +34,7 @@ test("createInitialWorkspaceState seeds the generated workspace defaults", () =>
   assert.equal(state.existing.glyphSetName, "roman");
   assert.equal(state.generation.sourceSetName, "roman");
   assert.deepEqual(state.generation.sourceDraftsBySetName, {});
+  assert.equal(state.generation.showSlotSettings, false);
   assert.equal(state.generation.seed, "run-seed");
   assert.equal(state.generation.maxAttemptsPerGlyph, DEFAULT_SET_GRAMMAR_DEFAULTS.maxAttemptsPerGlyph);
   assert.equal(state.generation.maxSetAttempts, DEFAULT_SET_GRAMMAR_DEFAULTS.maxSetAttempts);
@@ -48,6 +50,18 @@ test("setActiveWorkspaceTab switches tabs without disturbing generation settings
 
   assert.equal(nextState.activeTab, "generated");
   assert.equal(nextState.generation.seed, "seed");
+});
+
+test("setGenerationSlotSettingsVisibility toggles slot editor visibility", () => {
+  const state = createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  });
+  const nextState = setGenerationSlotSettingsVisibility(state, true);
+
+  assert.equal(nextState.generation.showSlotSettings, true);
+  assert.equal(state.generation.showSlotSettings, false);
 });
 
 test("buildGenerationRequest uses the selected generated-set form values", () => {
@@ -116,6 +130,48 @@ test("updateGenerationDraftGlobalSetting mutates the active draft path", () => {
   assert.equal(getGenerationSourceDraft(state).isDirty, true);
 });
 
+test("updateGenerationDraftGlobalSetting can store the new acceptance floor fields", () => {
+  let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "connectivityFloor", 0.66);
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "verticalSymmetryCoverageFloor", 0.52);
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "horizontalSymmetryCoverageFloor", 0.47);
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "complexityFloor", 0.2);
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "complexityCeiling", 0.8);
+
+  const acceptance = getGenerationSourceDraft(state).editedGrammar.setPriors.acceptance;
+  assert.equal(acceptance.connectivityFloor, 0.66);
+  assert.equal(acceptance.verticalSymmetryCoverageFloor, 0.52);
+  assert.equal(acceptance.horizontalSymmetryCoverageFloor, 0.47);
+  assert.equal(acceptance.complexityFloor, 0.2);
+  assert.equal(acceptance.complexityCeiling, 0.8);
+});
+
+test("updateGenerationDraftGlobalSetting reconciles invalid complexity floor and ceiling ordering", () => {
+  let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "complexityCeiling", 0.4);
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "complexityFloor", 0.7);
+
+  let acceptance = getGenerationSourceDraft(state).editedGrammar.setPriors.acceptance;
+  assert.equal(acceptance.complexityFloor, 0.7);
+  assert.equal(acceptance.complexityCeiling, 0.7);
+
+  state = updateGenerationDraftGlobalSetting(state, "acceptance", "complexityCeiling", 0.2);
+
+  acceptance = getGenerationSourceDraft(state).editedGrammar.setPriors.acceptance;
+  assert.equal(acceptance.complexityFloor, 0.2);
+  assert.equal(acceptance.complexityCeiling, 0.2);
+});
+
 test("updateGenerationDraftRangeBound mutates the correct slot range field", () => {
   let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
     defaultGlyphSet: "roman",
@@ -149,6 +205,28 @@ test("resetGenerationSourceDraft restores the source-derived grammar", () => {
   assert.equal(draft.isDirty, false);
   assert.deepEqual(draft.baseGrammar, draft.editedGrammar);
   assert.doesNotThrow(() => validateSetGrammar(draft.editedGrammar));
+});
+
+test("slot editor visibility does not disturb stored slot draft edits", () => {
+  let state = ensureGenerationSourceDraft(createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  }));
+  const slotKey = getGenerationSourceDraft(state).editedGrammar.setPriors.slotOrder[0];
+
+  state = updateGenerationDraftRangeBound(state, {
+    slotKey,
+    rangeGroup: "scores",
+    rangeKey: "density",
+    bound: "max",
+    value: 0.73
+  });
+  state = setGenerationSlotSettingsVisibility(state, true);
+  state = setGenerationSlotSettingsVisibility(state, false);
+
+  assert.equal(getGenerationSourceDraft(state).editedGrammar.setPriors.slotProfiles[slotKey].ranges.scores.density.max, 0.73);
+  assert.equal(state.generation.showSlotSettings, false);
 });
 
 test("edited drafts remain valid serializable grammars", () => {
