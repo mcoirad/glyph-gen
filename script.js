@@ -143,6 +143,8 @@ function buildGlyphTooltip(name, definition) {
     `overall: ${formatScoreValue(result.overall)}`,
     `vertical symmetry: ${formatScoreValue(result.scores.verticalSymmetry)}`,
     `horizontal symmetry: ${formatScoreValue(result.scores.horizontalSymmetry)}`,
+    `vertical symmetry coverage: ${formatScoreValue(result.scores.verticalSymmetryCoverage)}`,
+    `horizontal symmetry coverage: ${formatScoreValue(result.scores.horizontalSymmetryCoverage)}`,
     `connectivity: ${formatScoreValue(result.scores.connectivity)}`,
     `density: ${formatScoreValue(result.scores.density)}`,
     `balance: ${formatScoreValue(result.scores.balance)}`,

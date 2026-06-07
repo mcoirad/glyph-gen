@@ -12,9 +12,12 @@ import {
 
 const HALF_DEFAULT_SIZE = DEFAULT_SIZE / 2;
 const DEFAULT_SYMMETRY_TOLERANCE = DEFAULT_SIZE * 0.1;
+const DEFAULT_SYMMETRY_COVERAGE_THRESHOLD = 2;
 const FEATURE_NAMES = [
   "verticalSymmetry",
   "horizontalSymmetry",
+  "verticalSymmetryCoverage",
+  "horizontalSymmetryCoverage",
   "connectivity",
   "density",
   "balance",
@@ -24,6 +27,8 @@ const FEATURE_NAMES = [
 export const DEFAULT_SCORE_WEIGHTS = Object.freeze({
   verticalSymmetry: 0.2,
   horizontalSymmetry: 0.15,
+  verticalSymmetryCoverage: 0,
+  horizontalSymmetryCoverage: 0,
   connectivity: 0.25,
   density: 0.15,
   balance: 0.15,
@@ -69,6 +74,7 @@ function resolveScoreOptions(options = {}) {
     sampleSteps: options.sampleSteps ?? 24,
     endpointSnapDecimals: options.endpointSnapDecimals ?? 4,
     nearMissDistance: options.nearMissDistance ?? 4,
+    symmetryCoverageThreshold: options.symmetryCoverageThreshold ?? DEFAULT_SYMMETRY_COVERAGE_THRESHOLD,
     references: options.references ?? null,
     weights: {
       ...DEFAULT_SCORE_WEIGHTS,
@@ -184,6 +190,43 @@ function computeMirrorSymmetry(points, axis, tolerance = DEFAULT_SYMMETRY_TOLERA
   ) / 2;
 
   return clamp(1 - (meanDistance / tolerance));
+}
+
+function proximityScore(distance, threshold) {
+  if (distance >= threshold) {
+    return 0;
+  }
+
+  return clamp(1 - (distance / threshold));
+}
+
+function directedCoverageScore(sourcePoints, targetPoints, threshold) {
+  if (sourcePoints.length === 0 && targetPoints.length === 0) {
+    return 1;
+  }
+
+  if (sourcePoints.length === 0 || targetPoints.length === 0) {
+    return 0;
+  }
+
+  const total = sourcePoints.reduce((sum, point) => (
+    sum + proximityScore(nearestPointDistance(point, targetPoints), threshold)
+  ), 0);
+
+  return total / sourcePoints.length;
+}
+
+function computeMirrorCoverageSymmetry(points, axis, threshold) {
+  if (points.length === 0) {
+    return 1;
+  }
+
+  const mirroredPoints = points.map((point) => reflectPoint(point, axis));
+
+  return (
+    directedCoverageScore(points, mirroredPoints, threshold)
+    + directedCoverageScore(mirroredPoints, points, threshold)
+  ) / 2;
 }
 
 function computeSetIoU(a, b) {
@@ -394,6 +437,16 @@ function analyzeSegments(segments, rawOptions = {}) {
   const nearMissCount = countNearMissPairs(nodes, graph, options.nearMissDistance);
   const verticalSymmetry = computeMirrorSymmetry(pointCloud, "vertical");
   const horizontalSymmetry = computeMirrorSymmetry(pointCloud, "horizontal");
+  const verticalSymmetryCoverage = computeMirrorCoverageSymmetry(
+    pointCloud,
+    "vertical",
+    options.symmetryCoverageThreshold
+  );
+  const horizontalSymmetryCoverage = computeMirrorCoverageSymmetry(
+    pointCloud,
+    "horizontal",
+    options.symmetryCoverageThreshold
+  );
   const connectivity = clamp(
     1
       - (Math.max(0, componentCount - 1) * 0.2)
@@ -407,6 +460,8 @@ function analyzeSegments(segments, rawOptions = {}) {
   const scores = {
     verticalSymmetry,
     horizontalSymmetry,
+    verticalSymmetryCoverage,
+    horizontalSymmetryCoverage,
     connectivity,
     density,
     balance,

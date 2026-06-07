@@ -20,6 +20,8 @@ test("extractGlyphFeatures returns documented score and metric fields", () => {
   assert.deepEqual(Object.keys(result).sort(), ["metrics", "scores"]);
   assert.equal(typeof result.scores.verticalSymmetry, "number");
   assert.equal(typeof result.scores.horizontalSymmetry, "number");
+  assert.equal(typeof result.scores.verticalSymmetryCoverage, "number");
+  assert.equal(typeof result.scores.horizontalSymmetryCoverage, "number");
   assert.equal(typeof result.scores.connectivity, "number");
   assert.equal(typeof result.scores.density, "number");
   assert.equal(typeof result.scores.balance, "number");
@@ -85,6 +87,16 @@ test("A T and Y-like Roman glyphs score as highly vertically symmetric", () => {
   assert(tLike.scores.verticalSymmetry > 0.95);
   assert(yLike.scores.verticalSymmetry > 0.95);
   assert(asymmetric.scores.verticalSymmetry < 0.5);
+});
+
+test("coverage symmetry gives partial credit when only part of the glyph mirrors", () => {
+  const giml = scoreGlyph("T3r270|R2");
+  const res = scoreGlyph("Tr270|R2");
+
+  assert(giml.scores.horizontalSymmetryCoverage > giml.scores.horizontalSymmetry);
+  assert(res.scores.horizontalSymmetryCoverage > res.scores.horizontalSymmetry);
+  assert(giml.scores.horizontalSymmetryCoverage > 0.5);
+  assert(res.scores.horizontalSymmetryCoverage > 0.3);
 });
 
 test("connectivity scores penalize disconnected multi-part glyphs", () => {
