@@ -146,6 +146,10 @@ body {
   max-width: 100%;
 }
 
+#canvas svg [data-glyph-tooltip="true"] {
+  cursor: help;
+}
+
 @media (max-width: 720px) {
   .page {
     width: min(100vw - 20px, 1080px);

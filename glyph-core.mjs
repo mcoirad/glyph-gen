@@ -1,7 +1,11 @@
+import {
+  sampleArcPoint,
+  sampleSegmentPoints
+} from "./glyph-geometry.mjs";
+
 export const DEFAULT_SIZE = 60;
 
 const HALF_DEFAULT_SIZE = DEFAULT_SIZE / 2;
-const SAMPLE_STEPS = 24;
 const EPSILON = 1e-6;
 
 function approxEqual(a, b) {
@@ -598,47 +602,9 @@ function translatePoint([x, y], dx, dy) {
   return [x + dx, y + dy];
 }
 
-function sampleArcPoint(segment, angle) {
-  const [rx, ry] = segment.radii;
-  const localPoint = [Math.cos(angle) * rx, Math.sin(angle) * ry];
-  const rotated = rotatePoint(localPoint, segment.rotation || 0);
-  return translatePoint(rotated, segment.center[0], segment.center[1]);
-}
-
 function midpointForArc(segment) {
   const angle = segment.startAngle + ((segment.endAngle - segment.startAngle) / 2);
   return sampleArcPoint(segment, angle);
-}
-
-function sampleSegmentPoints(segment, steps = SAMPLE_STEPS) {
-  if (segment.kind === "line") {
-    return [segment.start, segment.end];
-  }
-
-  if (segment.kind === "quadratic") {
-    const points = [];
-    for (let index = 0; index <= steps; index += 1) {
-      const t = index / steps;
-      const mt = 1 - t;
-      points.push([
-        (mt * mt * segment.start[0]) + (2 * mt * t * segment.control[0]) + (t * t * segment.end[0]),
-        (mt * mt * segment.start[1]) + (2 * mt * t * segment.control[1]) + (t * t * segment.end[1])
-      ]);
-    }
-    return points;
-  }
-
-  if (segment.kind === "arc") {
-    const points = [];
-    for (let index = 0; index <= steps; index += 1) {
-      const t = index / steps;
-      const angle = segment.startAngle + ((segment.endAngle - segment.startAngle) * t);
-      points.push(sampleArcPoint(segment, angle));
-    }
-    return points;
-  }
-
-  throw new Error(`Unknown segment kind: ${segment.kind}`);
 }
 
 function lineFromPoints(points, visible = true) {

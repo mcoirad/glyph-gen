@@ -11,6 +11,7 @@ import {
   romanGlyphs
 } from "./glyph-definitions.mjs";
 import { renderGlyphNode } from "./glyph-render.mjs";
+import { scoreGlyph } from "./glyph-score.mjs";
 
 const canvasRoot = document.querySelector("#canvas");
 const draw = SVG().addTo(canvasRoot).size(600, 600);
@@ -129,6 +130,39 @@ function populateGlyphSetOptions() {
   glyphSetInput.replaceChildren(...options);
 }
 
+function formatScoreValue(value) {
+  return Number(value).toFixed(2);
+}
+
+function buildGlyphTooltip(name, definition) {
+  const result = scoreGlyph(definition);
+
+  return [
+    `${name}`,
+    `definition: ${definition}`,
+    `overall: ${formatScoreValue(result.overall)}`,
+    `vertical symmetry: ${formatScoreValue(result.scores.verticalSymmetry)}`,
+    `horizontal symmetry: ${formatScoreValue(result.scores.horizontalSymmetry)}`,
+    `connectivity: ${formatScoreValue(result.scores.connectivity)}`,
+    `density: ${formatScoreValue(result.scores.density)}`,
+    `balance: ${formatScoreValue(result.scores.balance)}`,
+    `complexity: ${formatScoreValue(result.scores.complexity)}`,
+    `components: ${result.metrics.componentCount}`,
+    `dangling endpoints: ${result.metrics.danglingEndpointCount}`,
+    `near misses: ${result.metrics.nearMissCount}`
+  ].join("\n");
+}
+
+function attachGlyphTooltip(group, tooltip) {
+  const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+  title.textContent = tooltip;
+  group.node.prepend(title);
+  group.attr({
+    "data-glyph-tooltip": "true",
+    tabindex: 0
+  });
+}
+
 function setActiveGlyphSet(name) {
   getGlyphDefinitions(name);
   previewState.glyphSetName = name;
@@ -170,6 +204,7 @@ function renderGlyphTable() {
       mode: previewState.mode,
       brush: previewState.brush
     });
+    attachGlyphTooltip(group, buildGlyphTooltip(name, definition));
 
     draw.text(name)
       .font({ size: 14, family: "IBM Plex Mono, monospace", anchor: "middle" })
