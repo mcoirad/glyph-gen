@@ -15,98 +15,212 @@
       <p class="eyebrow">Static Demo</p>
       <h1>Glyph Grammar</h1>
       <p class="lede">
-        Sample glyphs from the Phoenician and Futhorc alphabets using GlyphGrammar.
+        Browse source alphabets and generate synthetic sibling glyph sets using the same grammar and brush preview pipeline.
       </p>
     </header>
 
     <section class="workspace">
-      <div class="workspace-controls" aria-label="Brush preview controls">
-        <label class="control-card control-card--select" for="glyph-set">
-          <span class="control-heading">
-            <span class="control-label">Glyph Set</span>
-          </span>
-          <select id="glyph-set"></select>
-        </label>
-
-        <label class="control-card control-card--select" for="brush-profile">
-          <span class="control-heading">
-            <span class="control-label">Brush Profile</span>
-          </span>
-          <select id="brush-profile">
-            <option value="segment">Segment</option>
-            <option value="circle">Circle</option>
-            <option value="rectangle">Rectangle</option>
-          </select>
-        </label>
-
-        <label class="control-card" for="segment-angle" data-profile-controls="segment">
-          <span class="control-heading">
-            <span class="control-label">Nib Angle</span>
-            <output id="segment-angle-value" for="segment-angle">30°</output>
-          </span>
-          <input id="segment-angle" type="range" min="0" max="180" step="1" value="30">
-        </label>
-
-        <label class="control-card" for="segment-length" data-profile-controls="segment">
-          <span class="control-heading">
-            <span class="control-label">Length</span>
-            <output id="segment-length-value" for="segment-length">8</output>
-          </span>
-          <input id="segment-length" type="range" min="2" max="18" step="0.5" value="8">
-        </label>
-
-        <label class="control-card" for="circle-diameter" data-profile-controls="circle" hidden>
-          <span class="control-heading">
-            <span class="control-label">Diameter</span>
-            <output id="circle-diameter-value" for="circle-diameter">8</output>
-          </span>
-          <input id="circle-diameter" type="range" min="2" max="18" step="0.5" value="8">
-        </label>
-
-        <label class="control-card" for="circle-taper-start" data-profile-controls="circle" hidden>
-          <span class="control-heading">
-            <span class="control-label">Taper In</span>
-            <output id="circle-taper-start-value" for="circle-taper-start">0%</output>
-          </span>
-          <input id="circle-taper-start" type="range" min="0" max="100" step="5" value="0">
-        </label>
-
-        <label class="control-card" for="circle-taper-end" data-profile-controls="circle" hidden>
-          <span class="control-heading">
-            <span class="control-label">Taper Out</span>
-            <output id="circle-taper-end-value" for="circle-taper-end">0%</output>
-          </span>
-          <input id="circle-taper-end" type="range" min="0" max="100" step="5" value="0">
-        </label>
-
-        <label class="control-card" for="rectangle-angle" data-profile-controls="rectangle" hidden>
-          <span class="control-heading">
-            <span class="control-label">Rectangle Angle</span>
-            <output id="rectangle-angle-value" for="rectangle-angle">30°</output>
-          </span>
-          <input id="rectangle-angle" type="range" min="0" max="180" step="1" value="30">
-        </label>
-
-        <label class="control-card" for="rectangle-width" data-profile-controls="rectangle" hidden>
-          <span class="control-heading">
-            <span class="control-label">Width</span>
-            <output id="rectangle-width-value" for="rectangle-width">10</output>
-          </span>
-          <input id="rectangle-width" type="range" min="2" max="20" step="0.5" value="10">
-        </label>
-
-        <label class="control-card" for="rectangle-height" data-profile-controls="rectangle" hidden>
-          <span class="control-heading">
-            <span class="control-label">Height</span>
-            <output id="rectangle-height-value" for="rectangle-height">4</output>
-          </span>
-          <input id="rectangle-height" type="range" min="2" max="16" step="0.5" value="4">
-        </label>
+      <div class="workspace-tabs" role="tablist" aria-label="Workspace views">
+        <button
+          id="tab-existing"
+          class="workspace-tab workspace-tab--active"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panel-existing"
+          data-tab-target="existing"
+        >
+          Existing Sets
+        </button>
+        <button
+          id="tab-generated"
+          class="workspace-tab"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-generated"
+          data-tab-target="generated"
+        >
+          Generated Sets
+        </button>
       </div>
 
-      <div class="canvas-frame">
-        <div id="canvas" aria-label="Generated glyphs"></div>
+      <div class="workspace-shared">
+        <div class="section-heading">
+          <p class="section-eyebrow">Shared Render Controls</p>
+          <h2>Brush Preview</h2>
+        </div>
+
+        <div class="workspace-controls" aria-label="Brush preview controls">
+          <label class="control-card control-card--select" for="brush-profile">
+            <span class="control-heading">
+              <span class="control-label">Brush Profile</span>
+            </span>
+            <select id="brush-profile">
+              <option value="segment">Segment</option>
+              <option value="circle">Circle</option>
+              <option value="rectangle">Rectangle</option>
+            </select>
+          </label>
+
+          <label class="control-card" for="segment-angle" data-profile-controls="segment">
+            <span class="control-heading">
+              <span class="control-label">Nib Angle</span>
+              <output id="segment-angle-value" for="segment-angle">30°</output>
+            </span>
+            <input id="segment-angle" type="range" min="0" max="180" step="1" value="30">
+          </label>
+
+          <label class="control-card" for="segment-length" data-profile-controls="segment">
+            <span class="control-heading">
+              <span class="control-label">Length</span>
+              <output id="segment-length-value" for="segment-length">8</output>
+            </span>
+            <input id="segment-length" type="range" min="2" max="18" step="0.5" value="8">
+          </label>
+
+          <label class="control-card" for="circle-diameter" data-profile-controls="circle" hidden>
+            <span class="control-heading">
+              <span class="control-label">Diameter</span>
+              <output id="circle-diameter-value" for="circle-diameter">8</output>
+            </span>
+            <input id="circle-diameter" type="range" min="2" max="18" step="0.5" value="8">
+          </label>
+
+          <label class="control-card" for="circle-taper-start" data-profile-controls="circle" hidden>
+            <span class="control-heading">
+              <span class="control-label">Taper In</span>
+              <output id="circle-taper-start-value" for="circle-taper-start">0%</output>
+            </span>
+            <input id="circle-taper-start" type="range" min="0" max="100" step="5" value="0">
+          </label>
+
+          <label class="control-card" for="circle-taper-end" data-profile-controls="circle" hidden>
+            <span class="control-heading">
+              <span class="control-label">Taper Out</span>
+              <output id="circle-taper-end-value" for="circle-taper-end">0%</output>
+            </span>
+            <input id="circle-taper-end" type="range" min="0" max="100" step="5" value="0">
+          </label>
+
+          <label class="control-card" for="rectangle-angle" data-profile-controls="rectangle" hidden>
+            <span class="control-heading">
+              <span class="control-label">Rectangle Angle</span>
+              <output id="rectangle-angle-value" for="rectangle-angle">30°</output>
+            </span>
+            <input id="rectangle-angle" type="range" min="0" max="180" step="1" value="30">
+          </label>
+
+          <label class="control-card" for="rectangle-width" data-profile-controls="rectangle" hidden>
+            <span class="control-heading">
+              <span class="control-label">Width</span>
+              <output id="rectangle-width-value" for="rectangle-width">10</output>
+            </span>
+            <input id="rectangle-width" type="range" min="2" max="20" step="0.5" value="10">
+          </label>
+
+          <label class="control-card" for="rectangle-height" data-profile-controls="rectangle" hidden>
+            <span class="control-heading">
+              <span class="control-label">Height</span>
+              <output id="rectangle-height-value" for="rectangle-height">4</output>
+            </span>
+            <input id="rectangle-height" type="range" min="2" max="16" step="0.5" value="4">
+          </label>
+        </div>
       </div>
+
+      <section
+        id="panel-existing"
+        class="workspace-panel"
+        role="tabpanel"
+        aria-labelledby="tab-existing"
+        data-panel="existing"
+      >
+        <div class="section-heading">
+          <p class="section-eyebrow">Source Alphabets</p>
+          <h2>Existing Glyph Sets</h2>
+        </div>
+
+        <div class="panel-controls" aria-label="Existing glyph set controls">
+          <label class="control-card control-card--select" for="glyph-set">
+            <span class="control-heading">
+              <span class="control-label">Glyph Set</span>
+            </span>
+            <select id="glyph-set"></select>
+          </label>
+        </div>
+
+        <div class="canvas-frame">
+          <div id="existing-canvas" aria-label="Existing glyph set preview"></div>
+        </div>
+      </section>
+
+      <section
+        id="panel-generated"
+        class="workspace-panel"
+        role="tabpanel"
+        aria-labelledby="tab-generated"
+        data-panel="generated"
+        hidden
+      >
+        <div class="section-heading">
+          <p class="section-eyebrow">Sibling Synthesis</p>
+          <h2>Generated Glyph Sets</h2>
+        </div>
+
+        <div class="panel-controls panel-controls--generated" aria-label="Generated glyph set controls">
+          <label class="control-card control-card--select" for="generated-source-set">
+            <span class="control-heading">
+              <span class="control-label">Source Set</span>
+            </span>
+            <select id="generated-source-set"></select>
+          </label>
+
+          <label class="control-card" for="generation-seed">
+            <span class="control-heading">
+              <span class="control-label">Seed</span>
+            </span>
+            <input id="generation-seed" type="text" autocomplete="off" spellcheck="false">
+          </label>
+
+          <label class="control-card" for="max-attempts-per-glyph">
+            <span class="control-heading">
+              <span class="control-label">Attempts / Glyph</span>
+            </span>
+            <input id="max-attempts-per-glyph" type="number" min="1" step="1">
+          </label>
+
+          <label class="control-card" for="max-set-attempts">
+            <span class="control-heading">
+              <span class="control-label">Set Attempts</span>
+            </span>
+            <input id="max-set-attempts" type="number" min="1" step="1">
+          </label>
+
+          <div class="control-card control-card--action">
+            <span class="control-heading">
+              <span class="control-label">Run Generator</span>
+            </span>
+            <button id="generate-set" class="action-button" type="button">Generate Set</button>
+          </div>
+        </div>
+
+        <div class="generated-layout">
+          <aside class="diagnostics-panel" aria-live="polite">
+            <div class="diagnostics-panel__header">
+              <p class="section-eyebrow">Run Diagnostics</p>
+              <h3 id="generated-diagnostics-title">Generated Set</h3>
+              <p id="generated-status" class="diagnostics-status"></p>
+            </div>
+            <div id="generated-summary" class="diagnostics-summary"></div>
+            <ul id="generated-warnings" class="diagnostics-warnings"></ul>
+          </aside>
+
+          <div class="canvas-frame canvas-frame--generated">
+            <div id="generated-canvas" aria-label="Generated glyph set preview"></div>
+          </div>
+        </div>
+      </section>
     </section>
   </main>
 

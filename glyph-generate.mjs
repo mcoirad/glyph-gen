@@ -8,7 +8,7 @@ import { scoreGlyph } from "./glyph-score.mjs";
 
 export const SET_GRAMMAR_VERSION = "1";
 
-const DEFAULT_SET_PRIOR_DEFAULTS = Object.freeze({
+export const DEFAULT_SET_GRAMMAR_DEFAULTS = Object.freeze({
   backoffWeight: 0.15,
   maxDepth: 4,
   maxAttemptsPerGlyph: 200,
@@ -152,7 +152,7 @@ function countsToDistribution(counts) {
     }));
 }
 
-function mergeDistribution(primary = [], fallback = [], fallbackWeight = DEFAULT_SET_PRIOR_DEFAULTS.backoffWeight) {
+function mergeDistribution(primary = [], fallback = [], fallbackWeight = DEFAULT_SET_GRAMMAR_DEFAULTS.backoffWeight) {
   if (primary.length === 0) {
     return fallback.map((entry) => ({ value: clone(entry.value), probability: entry.probability }));
   }
@@ -567,7 +567,7 @@ function finalizeDistributions(counts) {
     ),
     backoff: {
       fallbackContext: "any",
-      weight: DEFAULT_SET_PRIOR_DEFAULTS.backoffWeight
+      weight: DEFAULT_SET_GRAMMAR_DEFAULTS.backoffWeight
     }
   };
   const attributeModel = {
@@ -646,7 +646,7 @@ function listPrimitiveKinds(node) {
 }
 
 function deriveMaxRepeatedStructureCount(slotCount) {
-  return Math.max(DEFAULT_SET_PRIOR_DEFAULTS.maxRepeatedStructureCount, Math.ceil(slotCount * 0.2));
+  return Math.max(DEFAULT_SET_GRAMMAR_DEFAULTS.maxRepeatedStructureCount, Math.ceil(slotCount * 0.2));
 }
 
 export function induceSetGrammar(source, options = {}) {
@@ -666,7 +666,7 @@ export function induceSetGrammar(source, options = {}) {
       definition,
       canonicalNode,
       analysis,
-      DEFAULT_SET_PRIOR_DEFAULTS
+      DEFAULT_SET_GRAMMAR_DEFAULTS
     );
 
     canonicalNodes.push(canonicalNode);
@@ -676,7 +676,7 @@ export function induceSetGrammar(source, options = {}) {
 
   const { structureModel, attributeModel } = finalizeDistributions(counts);
   const defaults = {
-    ...DEFAULT_SET_PRIOR_DEFAULTS,
+    ...DEFAULT_SET_GRAMMAR_DEFAULTS,
     ...(options.defaults || {}),
     maxRepeatedStructureCount: deriveMaxRepeatedStructureCount(slotProfiles.length)
   };
@@ -779,7 +779,7 @@ function normalizeGrammar(grammar) {
   validateSetGrammar(grammar);
 
   const defaults = {
-    ...DEFAULT_SET_PRIOR_DEFAULTS,
+    ...DEFAULT_SET_GRAMMAR_DEFAULTS,
     ...(grammar.defaults || {})
   };
   const normalized = clone(grammar);
