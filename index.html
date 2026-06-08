@@ -233,8 +233,32 @@
             </section>
           </aside>
 
-          <div class="canvas-frame canvas-frame--generated">
-            <div id="generated-canvas" aria-label="Generated glyph set preview"></div>
+          <div class="generated-content">
+            <div class="canvas-frame canvas-frame--generated">
+              <div id="generated-canvas" aria-label="Generated glyph set preview"></div>
+            </div>
+
+            <section class="text-preview-panel" aria-label="Generated text preview">
+              <div class="text-preview-panel__header">
+                <div>
+                  <p class="section-eyebrow">Sample Writing</p>
+                  <h3>Text Preview</h3>
+                </div>
+                <label class="text-preview-mode" for="generated-preview-mode">
+                  <span>Mode</span>
+                  <select id="generated-preview-mode">
+                    <option value="ltr">Left to Right</option>
+                    <option value="rtl">Right to Left</option>
+                    <option value="ttb">Top to Bottom</option>
+                    <option value="boustrophedon">Boustrophedon</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="canvas-frame canvas-frame--text-preview">
+                <div id="generated-text-preview" aria-label="Generated text preview canvas"></div>
+              </div>
+            </section>
           </div>
         </div>
       </section>

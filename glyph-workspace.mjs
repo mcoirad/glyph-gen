@@ -27,6 +27,7 @@ export function createInitialWorkspaceState({
       sourceSetName: defaultGlyphSet,
       sourceDraftsBySetName: {},
       showSlotSettings: false,
+      previewMode: "ltr",
       seed: initialSeed,
       maxAttemptsPerGlyph: generationDefaults.maxAttemptsPerGlyph,
       maxSetAttempts: generationDefaults.maxSetAttempts,
@@ -105,6 +106,16 @@ export function setGenerationSlotSettingsVisibility(state, showSlotSettings) {
     generation: {
       ...state.generation,
       showSlotSettings
+    }
+  };
+}
+
+export function setGenerationPreviewMode(state, previewMode) {
+  return {
+    ...state,
+    generation: {
+      ...state.generation,
+      previewMode
     }
   };
 }

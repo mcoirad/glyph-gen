@@ -247,6 +247,11 @@ body {
   align-items: start;
 }
 
+.generated-content {
+  display: grid;
+  gap: 18px;
+}
+
 .diagnostics-panel {
   display: grid;
   gap: 16px;
@@ -491,6 +496,44 @@ body {
   display: contents;
 }
 
+.text-preview-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.text-preview-panel__header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.text-preview-panel__header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.text-preview-mode {
+  display: inline-grid;
+  gap: 6px;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.text-preview-mode select {
+  appearance: none;
+  border: 1px solid rgba(24, 33, 43, 0.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text);
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 .canvas-frame {
   overflow: auto;
   border-radius: 20px;
@@ -502,7 +545,8 @@ body {
 }
 
 #existing-canvas,
-#generated-canvas {
+#generated-canvas,
+#generated-text-preview {
   width: 100%;
   min-height: 600px;
   border: 1px solid rgba(24, 33, 43, 0.12);
@@ -510,8 +554,13 @@ body {
   background: rgba(255, 255, 255, 0.78);
 }
 
+#generated-text-preview {
+  min-height: 380px;
+}
+
 #existing-canvas svg,
-#generated-canvas svg {
+#generated-canvas svg,
+#generated-text-preview svg {
   display: block;
   max-width: 100%;
 }
@@ -569,7 +618,12 @@ body {
   }
 
   .source-settings-panel__header,
+  .text-preview-panel__header,
   .slot-card__summary {
     align-items: start;
+  }
+
+  .text-preview-panel__header {
+    flex-direction: column;
   }
 }

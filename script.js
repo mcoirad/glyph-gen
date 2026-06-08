@@ -16,6 +16,12 @@ import {
   induceSetGrammar,
   validateSetGrammar
 } from "./glyph-generate.mjs";
+import {
+  createPreviewBrush,
+  createPreviewCorpus,
+  createPreviewLayoutOptions,
+  createPreviewPlacements
+} from "./glyph-text-preview.mjs";
 import { renderGlyphNode } from "./glyph-render.mjs";
 import { scoreGlyph } from "./glyph-score.mjs";
 import {
@@ -28,6 +34,7 @@ import {
   markGenerationPending,
   resetGenerationSourceDraft,
   setActiveWorkspaceTab,
+  setGenerationPreviewMode,
   setGenerationSlotSettingsVisibility,
   setGenerationSourceSet,
   storeGenerationError,
@@ -38,12 +45,15 @@ import {
 
 const existingCanvasRoot = document.querySelector("#existing-canvas");
 const generatedCanvasRoot = document.querySelector("#generated-canvas");
+const generatedTextPreviewRoot = document.querySelector("#generated-text-preview");
 const existingDraw = SVG().addTo(existingCanvasRoot).size(600, 600);
 const generatedDraw = SVG().addTo(generatedCanvasRoot).size(600, 600);
+const generatedTextPreviewDraw = SVG().addTo(generatedTextPreviewRoot).size(600, 280);
 const tabButtons = [...document.querySelectorAll("[data-tab-target]")];
 const panels = [...document.querySelectorAll("[data-panel]")];
 const glyphSetInput = document.querySelector("#glyph-set");
 const generatedSourceSetInput = document.querySelector("#generated-source-set");
+const generatedPreviewModeInput = document.querySelector("#generated-preview-mode");
 const generationSeedInput = document.querySelector("#generation-seed");
 const maxAttemptsPerGlyphInput = document.querySelector("#max-attempts-per-glyph");
 const maxSetAttemptsInput = document.querySelector("#max-set-attempts");
@@ -315,6 +325,7 @@ function syncBrushControls() {
 function syncWorkspaceControls() {
   glyphSetInput.value = workspaceState.existing.glyphSetName;
   generatedSourceSetInput.value = workspaceState.generation.sourceSetName;
+  generatedPreviewModeInput.value = workspaceState.generation.previewMode;
   generationSeedInput.value = workspaceState.generation.seed;
   maxAttemptsPerGlyphInput.value = String(workspaceState.generation.maxAttemptsPerGlyph);
   maxSetAttemptsInput.value = String(workspaceState.generation.maxSetAttempts);
@@ -450,6 +461,80 @@ function formatRejectionCounts(rejectionCounts = {}) {
   }
 
   return entries.map(([reason, count]) => `${reason} (${count})`).join(", ");
+}
+
+function createGeneratedPreviewSeed() {
+  const result = workspaceState.generation.currentResult;
+  const definitions = result?.definitions || {};
+  const signature = Object.entries(definitions)
+    .map(([key, definition]) => `${key}:${definition}`)
+    .join("|");
+
+  return [
+    "preview",
+    workspaceState.generation.lastRequest?.seed || workspaceState.generation.seed,
+    workspaceState.generation.sourceSetName,
+    signature
+  ].join(":");
+}
+
+function createGeneratedPreviewWords() {
+  const result = workspaceState.generation.currentResult;
+
+  if (!result) {
+    return [];
+  }
+
+  return createPreviewCorpus({
+    definitions: result.definitions,
+    seed: createGeneratedPreviewSeed(),
+    sourceSetName: workspaceState.generation.sourceSetName
+  });
+}
+
+function renderGeneratedTextPreview() {
+  if (!workspaceState.generation.currentResult) {
+    renderEmptyCanvas(
+      generatedTextPreviewDraw,
+      generatedTextPreviewRoot,
+      "Text Preview",
+      "Generate a sibling alphabet to preview seeded sample writing here."
+    );
+    return;
+  }
+
+  const previewWords = createGeneratedPreviewWords();
+  const width = Math.max(420, Math.floor(generatedTextPreviewRoot.clientWidth || 600));
+  const height = 380;
+  const layout = createPreviewLayoutOptions(width, height);
+  const placements = createPreviewPlacements(
+    previewWords,
+    workspaceState.generation.previewMode,
+    layout
+  );
+  const previewBrush = createPreviewBrush(brushState.brush);
+  const definitions = workspaceState.generation.currentResult.definitions;
+
+  generatedTextPreviewDraw.clear();
+  generatedTextPreviewDraw.size(width, height);
+
+  placements.forEach(({ key, x, y }) => {
+    const definition = definitions[key];
+
+    if (!definition) {
+      return;
+    }
+
+    const glyph = parseGlyphDefinition(definition);
+    const group = generatedTextPreviewDraw.group().translate(x + (layout.glyphCellSize / 2), y + (layout.glyphCellSize / 2));
+
+    renderGlyphNode(glyph, group, {
+      targetWidth: layout.glyphCellSize,
+      targetHeight: layout.glyphCellSize,
+      mode: brushState.mode,
+      brush: previewBrush
+    });
+  });
 }
 
 function buildGeneratedGlyphTooltip(name, definition, glyphData = {}) {
@@ -707,6 +792,7 @@ function renderWorkspace() {
   renderTabPanels();
   renderExistingGlyphTable();
   renderGeneratedGlyphTable();
+  renderGeneratedTextPreview();
   renderGeneratedDiagnostics();
   renderSourceSettingsEditor();
 }
@@ -714,6 +800,7 @@ function renderWorkspace() {
 function rerenderGlyphTables() {
   renderExistingGlyphTable();
   renderGeneratedGlyphTable();
+  renderGeneratedTextPreview();
 }
 
 function runGeneration() {
@@ -818,6 +905,11 @@ glyphSetInput.addEventListener("input", () => {
 generatedSourceSetInput.addEventListener("input", () => {
   workspaceState = setGenerationSourceSet(workspaceState, generatedSourceSetInput.value);
   renderWorkspace();
+});
+
+generatedPreviewModeInput.addEventListener("input", () => {
+  workspaceState = setGenerationPreviewMode(workspaceState, generatedPreviewModeInput.value);
+  renderGeneratedTextPreview();
 });
 
 generationSeedInput.addEventListener("input", () => {

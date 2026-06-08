@@ -38,6 +38,15 @@ test("induceSetGrammar returns a serializable grammar with structure and slot pr
   assert.doesNotThrow(() => JSON.parse(JSON.stringify(grammar)));
 });
 
+test("induced grammars carry the expected default global thresholds", () => {
+  const { grammar } = induceSetGrammar("roman");
+
+  assert.equal(grammar.setPriors.acceptance.connectivityFloor, 0.5);
+  assert.equal(grammar.setPriors.acceptance.complexityCeiling, 0.6);
+  assert.equal(grammar.setPriors.diversity.minRepeatedGlyphCount, 10);
+  assert.equal(grammar.setPriors.diversity.maxRepeatedStructureCount, 15);
+});
+
 test("induceSetGrammar accepts a custom glyph map", () => {
   const { grammar } = induceSetGrammar(CUSTOM_SOURCE);
 

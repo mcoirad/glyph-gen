@@ -15,6 +15,7 @@ import {
   markGenerationPending,
   resetGenerationSourceDraft,
   setActiveWorkspaceTab,
+  setGenerationPreviewMode,
   setGenerationSlotSettingsVisibility,
   setGenerationSourceSet,
   storeGenerationError,
@@ -35,6 +36,7 @@ test("createInitialWorkspaceState seeds the generated workspace defaults", () =>
   assert.equal(state.generation.sourceSetName, "roman");
   assert.deepEqual(state.generation.sourceDraftsBySetName, {});
   assert.equal(state.generation.showSlotSettings, false);
+  assert.equal(state.generation.previewMode, "ltr");
   assert.equal(state.generation.seed, "run-seed");
   assert.equal(state.generation.maxAttemptsPerGlyph, DEFAULT_SET_GRAMMAR_DEFAULTS.maxAttemptsPerGlyph);
   assert.equal(state.generation.maxSetAttempts, DEFAULT_SET_GRAMMAR_DEFAULTS.maxSetAttempts);
@@ -62,6 +64,19 @@ test("setGenerationSlotSettingsVisibility toggles slot editor visibility", () =>
 
   assert.equal(nextState.generation.showSlotSettings, true);
   assert.equal(state.generation.showSlotSettings, false);
+});
+
+test("setGenerationPreviewMode updates preview mode without touching generated result state", () => {
+  const state = createInitialWorkspaceState({
+    defaultGlyphSet: "roman",
+    generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
+    initialSeed: "seed"
+  });
+  const nextState = setGenerationPreviewMode(state, "ttb");
+
+  assert.equal(nextState.generation.previewMode, "ttb");
+  assert.equal(nextState.generation.currentResult, null);
+  assert.equal(nextState.generation.seed, "seed");
 });
 
 test("buildGenerationRequest uses the selected generated-set form values", () => {

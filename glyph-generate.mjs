@@ -15,14 +15,14 @@ export const DEFAULT_SET_GRAMMAR_DEFAULTS = Object.freeze({
   maxSetAttempts: 10,
   overallScoreFloor: 0.42,
   slotFitFloor: 0.62,
-  connectivityFloor: 0,
+  connectivityFloor: 0.5,
   verticalSymmetryCoverageFloor: 0,
   horizontalSymmetryCoverageFloor: 0,
   complexityFloor: 0,
-  complexityCeiling: 1,
+  complexityCeiling: 0.6,
   noveltyFloor: 0.04,
   featureDistanceFloor: 0.05,
-  minRepeatedGlyphCount: 0,
+  minRepeatedGlyphCount: 10,
   scorePadding: 0.22,
   densityPadding: 0.08,
   occupiedCellRatioPadding: 0.08,
@@ -32,7 +32,7 @@ export const DEFAULT_SET_GRAMMAR_DEFAULTS = Object.freeze({
   columnCountPadding: 1,
   overlayCountPadding: 1,
   primitiveCountPadding: 2,
-  maxRepeatedStructureCount: 2
+  maxRepeatedStructureCount: 15
 });
 
 const STRUCTURE_CONTEXTS = ["root", "grid", "overlay", "any"];
