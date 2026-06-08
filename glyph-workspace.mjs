@@ -32,6 +32,7 @@ export function createInitialWorkspaceState({
       maxAttemptsPerGlyph: generationDefaults.maxAttemptsPerGlyph,
       maxSetAttempts: generationDefaults.maxSetAttempts,
       isGenerating: false,
+      progressMessage: null,
       currentResult: null,
       lastRequest: null,
       error: null
@@ -218,13 +219,25 @@ export function buildGenerationRequest(state) {
   };
 }
 
-export function markGenerationPending(state) {
+export function markGenerationPending(state, progressMessage = null) {
   return {
     ...state,
     generation: {
       ...state.generation,
       isGenerating: true,
+      progressMessage,
       error: null
+    }
+  };
+}
+
+export function updateGenerationProgress(state, progressMessage) {
+  return {
+    ...state,
+    generation: {
+      ...state.generation,
+      isGenerating: true,
+      progressMessage
     }
   };
 }
@@ -235,6 +248,7 @@ export function storeGeneratedResult(state, result, request) {
     generation: {
       ...state.generation,
       isGenerating: false,
+      progressMessage: null,
       error: null,
       currentResult: result,
       lastRequest: {
@@ -250,6 +264,7 @@ export function storeGenerationError(state, errorMessage) {
     generation: {
       ...state.generation,
       isGenerating: false,
+      progressMessage: null,
       error: errorMessage
     }
   };
@@ -267,7 +282,7 @@ export function buildGeneratedDiagnostics(state, labels = {}) {
     return {
       title: "Generated Set",
       status: state.generation.isGenerating
-        ? "Generating a sibling alphabet…"
+        ? (state.generation.progressMessage || "Generating a sibling alphabet…")
         : "Generate a sibling alphabet from one of the built-in sets.",
       summaryItems: [
         { label: "Source", value: sourceLabel },
@@ -284,7 +299,7 @@ export function buildGeneratedDiagnostics(state, labels = {}) {
   return {
     title: "Generated Set",
     status: state.generation.isGenerating
-      ? "Generating a new sibling alphabet…"
+      ? (state.generation.progressMessage || "Generating a new sibling alphabet…")
       : (warnings.length > 0 ? "Showing the last successful generated run." : "Generated sibling alphabet ready."),
     summaryItems: [
       { label: "Source", value: sourceLabel },

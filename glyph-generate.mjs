@@ -15,11 +15,11 @@ export const DEFAULT_SET_GRAMMAR_DEFAULTS = Object.freeze({
   maxSetAttempts: 10,
   overallScoreFloor: 0.42,
   slotFitFloor: 0.62,
-  connectivityFloor: 0.5,
+  connectivityFloor: 0.8,
   verticalSymmetryCoverageFloor: 0,
   horizontalSymmetryCoverageFloor: 0,
   complexityFloor: 0,
-  complexityCeiling: 0.6,
+  complexityCeiling: 0.5,
   noveltyFloor: 0.04,
   featureDistanceFloor: 0.05,
   minRepeatedGlyphCount: 10,
@@ -1141,7 +1141,8 @@ export function generateGlyphSet({
   grammar,
   seed,
   maxAttemptsPerGlyph,
-  maxSetAttempts
+  maxSetAttempts,
+  onProgress
 } = {}) {
   if (seed === undefined || seed === null) {
     throw new Error("generateGlyphSet requires a seed");
@@ -1150,13 +1151,29 @@ export function generateGlyphSet({
   const normalizedGrammar = normalizeGrammar(grammar);
   const attemptsPerGlyph = maxAttemptsPerGlyph ?? normalizedGrammar.defaults.maxAttemptsPerGlyph;
   const totalSetAttempts = maxSetAttempts ?? normalizedGrammar.defaults.maxSetAttempts;
+  const totalGlyphs = normalizedGrammar.setPriors.slotOrder.length;
   const sourceDefinitions = normalizedGrammar.setPriors.slotOrder.map((key) => (
     normalizedGrammar.setPriors.slotProfiles[key].sourceDefinition
   ));
+  const emitProgress = typeof onProgress === "function" ? onProgress : null;
 
   let bestSet = null;
 
+  emitProgress?.({
+    stage: "prepare",
+    totalSetAttempts,
+    totalGlyphs,
+    attemptsPerGlyph
+  });
+
   for (let setAttempt = 0; setAttempt < totalSetAttempts; setAttempt += 1) {
+    emitProgress?.({
+      stage: "set-attempt",
+      setAttempt: setAttempt + 1,
+      totalSetAttempts,
+      totalGlyphs,
+      attemptsPerGlyph
+    });
     const rng = createRng(`${seed}:${setAttempt}`);
     const acceptedDefinitions = [];
     const acceptedVectors = [];
@@ -1164,7 +1181,16 @@ export function generateGlyphSet({
     const glyphs = {};
     const definitions = {};
 
-    normalizedGrammar.setPriors.slotOrder.forEach((key) => {
+    normalizedGrammar.setPriors.slotOrder.forEach((key, glyphIndex) => {
+      emitProgress?.({
+        stage: "glyph",
+        setAttempt: setAttempt + 1,
+        totalSetAttempts,
+        glyphIndex: glyphIndex + 1,
+        totalGlyphs,
+        slotKey: key,
+        attemptsPerGlyph
+      });
       const profile = normalizedGrammar.setPriors.slotProfiles[key];
       const rejectionCounts = {};
       let bestCandidate = null;
@@ -1291,6 +1317,16 @@ export function generateGlyphSet({
     if (!meetsMinRepeatedGlyphCount) {
       warnings.push("below-min-repeated-glyph-count");
     }
+
+    emitProgress?.({
+      stage: "set-evaluated",
+      setAttempt: setAttempt + 1,
+      totalSetAttempts,
+      acceptedCount,
+      totalGlyphs,
+      repeatedGlyphCount,
+      meetsMinRepeatedGlyphCount
+    });
 
     const setDiagnostics = {
       seed: `${seed}:${setAttempt}`,

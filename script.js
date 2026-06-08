@@ -39,6 +39,7 @@ import {
   setGenerationSourceSet,
   storeGenerationError,
   storeGeneratedResult,
+  updateGenerationProgress,
   updateGenerationDraftGlobalSetting,
   updateGenerationDraftRangeBound
 } from "./glyph-workspace.mjs";
@@ -146,6 +147,9 @@ let workspaceState = createInitialWorkspaceState({
   generationDefaults: DEFAULT_SET_GRAMMAR_DEFAULTS,
   initialSeed: createGenerationSeed()
 });
+let generationWorker = null;
+let activeGenerationRequestId = 0;
+let activeGenerationRequest = null;
 
 const brushState = {
   mode: "brush",
@@ -803,14 +807,95 @@ function rerenderGlyphTables() {
   renderGeneratedTextPreview();
 }
 
+function storeGenerationWorkerError(errorMessage, requestId = activeGenerationRequestId) {
+  if (requestId !== activeGenerationRequestId) {
+    return;
+  }
+
+  workspaceState = storeGenerationError(workspaceState, errorMessage);
+  activeGenerationRequest = null;
+  renderWorkspace();
+}
+
+function handleGenerationWorkerMessage(event) {
+  const { type, requestId, message, result, error } = event.data || {};
+
+  if (requestId !== activeGenerationRequestId) {
+    return;
+  }
+
+  if (type === "progress") {
+    workspaceState = updateGenerationProgress(workspaceState, message);
+    renderGeneratedDiagnostics();
+    return;
+  }
+
+  if (type === "result") {
+    workspaceState = storeGeneratedResult(workspaceState, result, activeGenerationRequest);
+    activeGenerationRequest = null;
+    renderWorkspace();
+    return;
+  }
+
+  if (type === "error") {
+    storeGenerationWorkerError(error, requestId);
+  }
+}
+
+function getGenerationWorker() {
+  if (typeof window.Worker !== "function") {
+    return null;
+  }
+
+  if (!generationWorker) {
+    generationWorker = new Worker(new URL("./glyph-generate-worker.mjs", import.meta.url), {
+      type: "module"
+    });
+    generationWorker.addEventListener("message", handleGenerationWorkerMessage);
+    generationWorker.addEventListener("error", (event) => {
+      storeGenerationWorkerError(event.message || "Generation worker failed unexpectedly.");
+    });
+  }
+
+  return generationWorker;
+}
+
 function runGeneration() {
   const request = buildGenerationRequest(workspaceState);
-  workspaceState = markGenerationPending(workspaceState);
+  activeGenerationRequestId += 1;
+  activeGenerationRequest = request;
+  workspaceState = markGenerationPending(
+    workspaceState,
+    `Queueing a ${labelForSourceSet(request.source)}-derived sibling alphabet…`
+  );
   renderWorkspace();
+
+  const worker = getGenerationWorker();
+
+  if (worker) {
+    worker.postMessage({
+      type: "generate",
+      requestId: activeGenerationRequestId,
+      request
+    });
+    return;
+  }
+
+  const requestId = activeGenerationRequestId;
 
   window.requestAnimationFrame(() => {
     try {
+      workspaceState = updateGenerationProgress(
+        workspaceState,
+        `Validating ${labelForSourceSet(request.source)}-derived generation settings…`
+      );
+      renderGeneratedDiagnostics();
       validateSetGrammar(request.grammar);
+      workspaceState = updateGenerationProgress(
+        workspaceState,
+        `Generating a ${labelForSourceSet(request.source)}-derived sibling alphabet…`
+      );
+      renderGeneratedDiagnostics();
       const result = generateGlyphSet({
         grammar: request.grammar,
         seed: request.seed,
@@ -818,14 +903,20 @@ function runGeneration() {
         maxSetAttempts: request.maxSetAttempts
       });
 
+      if (requestId !== activeGenerationRequestId) {
+        return;
+      }
+
       workspaceState = storeGeneratedResult(workspaceState, result, request);
     } catch (error) {
-      workspaceState = storeGenerationError(
-        workspaceState,
-        error instanceof Error ? error.message : String(error)
-      );
+      if (requestId !== activeGenerationRequestId) {
+        return;
+      }
+
+      workspaceState = storeGenerationError(workspaceState, error instanceof Error ? error.message : String(error));
     }
 
+    activeGenerationRequest = null;
     renderWorkspace();
   });
 }
