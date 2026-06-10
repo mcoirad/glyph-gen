@@ -7,6 +7,7 @@ import {
   futhorcGlyphs,
   getGlyphDefinitions,
   glyphSets,
+  katakanaGlyphs,
   phoenicianGlyphs,
   romanGlyphs
 } from "./glyph-definitions.mjs";
@@ -90,6 +91,7 @@ const controlGroups = document.querySelectorAll("[data-profile-controls]");
 const glyphSetLabels = {
   phoenician: "Phoenician",
   futhorc: "Futhorc",
+  katakana: "Katakana",
   roman: "Roman"
 };
 
@@ -933,6 +935,7 @@ window.GlyphGen = {
   getGlyphDefinitions,
   glyphSets,
   induceSetGrammar,
+  katakanaGlyphs,
   parseGlyphDefinition,
   phoenicianGlyphs,
   romanGlyphs,

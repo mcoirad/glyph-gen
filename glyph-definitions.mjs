@@ -1,14 +1,16 @@
 import phoenicianGlyphs from "./phoenician-glyphs.json" with { type: "json" };
 import futhorcGlyphs from "./futhorc-glyphs.json" with { type: "json" };
+import katakanaGlyphs from "./katakana-glyphs.json" with { type: "json" };
 import romanGlyphs from "./roman-glyphs.json" with { type: "json" };
 
 export const glyphSets = Object.freeze({
   phoenician: phoenicianGlyphs,
   futhorc: futhorcGlyphs,
+  katakana: katakanaGlyphs,
   roman: romanGlyphs
 });
 
-export const DEFAULT_GLYPH_SET = "futhorc";
+export const DEFAULT_GLYPH_SET = "katakana";
 
 export function getGlyphDefinitions(setName = DEFAULT_GLYPH_SET) {
   const glyphs = glyphSets[setName];
@@ -24,6 +26,7 @@ export const defaultGlyphs = getGlyphDefinitions();
 
 export {
   futhorcGlyphs,
+  katakanaGlyphs,
   phoenicianGlyphs,
   romanGlyphs
 };

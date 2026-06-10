@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { compileGlyphDefinition, parseGlyphDefinition } from "../glyph-core.mjs";
 import {
+  DEFAULT_SET_GRAMMAR_DEFAULTS,
   generateGlyphSet,
   induceSetGrammar,
   SET_GRAMMAR_VERSION,
@@ -41,10 +42,13 @@ test("induceSetGrammar returns a serializable grammar with structure and slot pr
 test("induced grammars carry the expected default global thresholds", () => {
   const { grammar } = induceSetGrammar("roman");
 
-  assert.equal(grammar.setPriors.acceptance.connectivityFloor, 0.5);
-  assert.equal(grammar.setPriors.acceptance.complexityCeiling, 0.6);
-  assert.equal(grammar.setPriors.diversity.minRepeatedGlyphCount, 10);
-  assert.equal(grammar.setPriors.diversity.maxRepeatedStructureCount, 15);
+  assert.equal(grammar.setPriors.acceptance.connectivityFloor, DEFAULT_SET_GRAMMAR_DEFAULTS.connectivityFloor);
+  assert.equal(grammar.setPriors.acceptance.complexityCeiling, DEFAULT_SET_GRAMMAR_DEFAULTS.complexityCeiling);
+  assert.equal(grammar.setPriors.diversity.minRepeatedGlyphCount, DEFAULT_SET_GRAMMAR_DEFAULTS.minRepeatedGlyphCount);
+  assert.equal(
+    grammar.setPriors.diversity.maxRepeatedStructureCount,
+    DEFAULT_SET_GRAMMAR_DEFAULTS.maxRepeatedStructureCount
+  );
 });
 
 test("induceSetGrammar accepts a custom glyph map", () => {

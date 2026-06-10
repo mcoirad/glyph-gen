@@ -17,10 +17,12 @@ import {
   futhorcGlyphs,
   getGlyphDefinitions,
   glyphSets,
+  katakanaGlyphs,
   phoenicianGlyphs,
   romanGlyphs
 } from "../glyph-definitions.mjs";
 import { FUTHORC_GLYPH_KEYS } from "../futhorc-glyphs.mjs";
+import { KATAKANA_GLYPH_KEYS } from "../katakana-glyphs.mjs";
 import { ROMAN_GLYPH_KEYS } from "../roman-glyphs.mjs";
 import {
   buildBrushRenderShape,
@@ -103,11 +105,18 @@ test("roman glyph definitions parse", () => {
   }
 });
 
+test("katakana glyph definitions parse", () => {
+  for (const definition of Object.values(katakanaGlyphs)) {
+    assert.doesNotThrow(() => parseGlyphDefinition(definition));
+  }
+});
+
 test("glyph definitions can be loaded generically by set name", () => {
   assert.equal(DEFAULT_GLYPH_SET, "futhorc");
-  assert.deepEqual(Object.keys(glyphSets), ["phoenician", "futhorc", "roman"]);
+  assert.deepEqual(Object.keys(glyphSets), ["phoenician", "futhorc", "katakana", "roman"]);
   assert.equal(getGlyphDefinitions(), defaultGlyphs);
   assert.equal(getGlyphDefinitions("futhorc"), futhorcGlyphs);
+  assert.equal(getGlyphDefinitions("katakana"), katakanaGlyphs);
   assert.equal(getGlyphDefinitions("phoenician"), phoenicianGlyphs);
   assert.equal(getGlyphDefinitions("roman"), romanGlyphs);
   assert.throws(() => getGlyphDefinitions("norse"), /Unknown glyph set: norse/);
@@ -165,6 +174,13 @@ test("JSON-backed roman glyph definitions preserve the expected shape", () => {
   assert.ok(romanGlyphs);
   assert.deepEqual(Object.keys(romanGlyphs), ROMAN_GLYPH_KEYS);
   assert.ok(Object.values(romanGlyphs).every((definition) => typeof definition === "string"));
+});
+
+test("JSON-backed katakana glyph definitions preserve the expected shape", () => {
+  assert.equal(typeof katakanaGlyphs, "object");
+  assert.ok(katakanaGlyphs);
+  assert.deepEqual(Object.keys(katakanaGlyphs), KATAKANA_GLYPH_KEYS);
+  assert.ok(Object.values(katakanaGlyphs).every((definition) => typeof definition === "string"));
 });
 
 test("suffix modifiers attach to primitives and grouped expressions", () => {

@@ -376,6 +376,7 @@ test("buildGeneratedDiagnostics surfaces current-run summary and warnings", () =
     maxSetAttempts: 2
   }), "Last generation failed");
   const diagnostics = buildGeneratedDiagnostics(state, {
+    katakana: "Katakana",
     roman: "Roman"
   });
 
